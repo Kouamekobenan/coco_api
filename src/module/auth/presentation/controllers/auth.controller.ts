@@ -16,8 +16,10 @@ import {
 import { RegisterUserUseCase } from '../../application/usecases/register-user.usecase.js';
 import { LoginUserUseCase } from '../../application/usecases/login-user.usecase.js';
 import { GetProfileUseCase } from '../../application/usecases/get-profile.usecase.js';
+import { ResetPasswordUseCase } from '../../application/usecases/reset-password.usecase.js';
 import { RegisterDto } from '../../application/dtos/register.dto.js';
 import { LoginDto } from '../../application/dtos/login.dto.js';
+import { ResetPasswordDto } from '../../application/dtos/reset-password.dto.js';
 import { AuthResponseDto } from '../../application/dtos/auth-response.dto.js';
 import { UserResponseDto } from '../../application/dtos/user-response.dto.js';
 import { Public } from '../../infrastructure/security/public.decorator.js';
@@ -32,6 +34,7 @@ export class AuthController {
     private readonly registerUserUseCase: RegisterUserUseCase,
     private readonly loginUserUseCase: LoginUserUseCase,
     private readonly getProfileUseCase: GetProfileUseCase,
+    private readonly resetPasswordUseCase: ResetPasswordUseCase,
   ) {}
 
   @Public()
@@ -78,6 +81,26 @@ export class AuthController {
   })
   public async login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
     return this.loginUserUseCase.execute(dto);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Réinitialiser son mot de passe',
+    description:
+      'Permet de réinitialiser le mot de passe d’un compte directement via son numéro de téléphone.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Mot de passe réinitialisé avec succès.',
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Aucun compte associé à ce numéro.',
+  })
+  public async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
+    return this.resetPasswordUseCase.execute(dto);
   }
 
   @Get('me')

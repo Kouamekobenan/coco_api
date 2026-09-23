@@ -128,16 +128,28 @@ export class UserEntity {
     lastName?: string;
     email?: string;
     avatarUrl?: string;
+    defaultUniverse?: AppUniverseType;
   }): void {
     if (data.firstName !== undefined) this.props.firstName = data.firstName;
     if (data.lastName !== undefined) this.props.lastName = data.lastName;
     if (data.email !== undefined) this.props.email = data.email;
     if (data.avatarUrl !== undefined) this.props.avatarUrl = data.avatarUrl;
+    if (data.defaultUniverse !== undefined) this.props.defaultUniverse = data.defaultUniverse;
     this.props.updatedAt = new Date();
   }
 
   public updatePassword(newPassword: Password): void {
     this.props.password = newPassword;
+    this.props.updatedAt = new Date();
+  }
+
+  public deactivate(): void {
+    this.props.isActive = false;
+    this.props.updatedAt = new Date();
+  }
+
+  public activate(): void {
+    this.props.isActive = true;
     this.props.updatedAt = new Date();
   }
 }

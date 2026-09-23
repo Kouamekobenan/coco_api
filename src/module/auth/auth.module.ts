@@ -12,6 +12,12 @@ import { TOKEN_SERVICE } from './application/ports/token-service.port.js';
 import { RegisterUserUseCase } from './application/usecases/register-user.usecase.js';
 import { LoginUserUseCase } from './application/usecases/login-user.usecase.js';
 import { GetProfileUseCase } from './application/usecases/get-profile.usecase.js';
+import { ResetPasswordUseCase } from './application/usecases/reset-password.usecase.js';
+import { UpdateProfileUseCase } from './application/usecases/update-profile.usecase.js';
+import { ChangePasswordUseCase } from './application/usecases/change-password.usecase.js';
+import { FindAllUsersUseCase } from './application/usecases/find-all-users.usecase.js';
+import { ToggleUserStatusUseCase } from './application/usecases/toggle-user-status.usecase.js';
+import { DeleteUserUseCase } from './application/usecases/delete-user.usecase.js';
 
 // Infrastructure Adapters
 import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository.js';
@@ -22,6 +28,7 @@ import { JwtAuthGuard } from './infrastructure/security/jwt-auth.guard.js';
 
 // Presentation Controllers
 import { AuthController } from './presentation/controllers/auth.controller.js';
+import { UsersController } from './presentation/controllers/users.controller.js';
 
 @Module({
   imports: [
@@ -38,7 +45,7 @@ import { AuthController } from './presentation/controllers/auth.controller.js';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, UsersController],
   providers: [
     // IoC D.I. Bindings (DDD Ports -> Adapters)
     {
@@ -58,6 +65,12 @@ import { AuthController } from './presentation/controllers/auth.controller.js';
     RegisterUserUseCase,
     LoginUserUseCase,
     GetProfileUseCase,
+    ResetPasswordUseCase,
+    UpdateProfileUseCase,
+    ChangePasswordUseCase,
+    FindAllUsersUseCase,
+    ToggleUserStatusUseCase,
+    DeleteUserUseCase,
 
     // Security
     JwtStrategy,

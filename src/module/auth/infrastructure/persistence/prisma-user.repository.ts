@@ -1,10 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
-import { IUserRepository } from '../../domain/repositories/user.repository.interface.js';
+import {
+  FindAllUsersOptions,
+  IUserRepository,
+} from '../../domain/repositories/user.repository.interface.js';
 import { UserEntity } from '../../domain/entities/user.entity.js';
 import { PhoneNumber } from '../../domain/value-objects/phone-number.vo.js';
 import { UserMapper } from './user.mapper.js';
-import { AppUniverse as PrismaAppUniverse } from '@prisma/client';
+import { AppUniverse as PrismaAppUniverse, Prisma } from '@prisma/client';
 
 @Injectable()
 export class PrismaUserRepository implements IUserRepository {
@@ -62,6 +65,47 @@ export class PrismaUserRepository implements IUserRepository {
         isSuperAdmin: user.isSuperAdmin(),
         updatedAt: user.getUpdatedAt(),
       },
+    });
+  }
+
+  public async findAll(options: FindAllUsersOptions): Promise<{ users: UserEntity[]; total: number }> {
+    const page = Math.max(1, options.page ?? 1);
+    const limit = Math.min(100, Math.max(1, options.limit ?? 10));
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.UserWhereInput = {};
+
+    if (options.universe) {
+      where.defaultUniverse = options.universe.toUpperCase() as PrismaAppUniverse;
+    }
+
+    if (options.search) {
+      const term = options.search.trim();
+      where.OR = [
+        { phone: { contains: term, mode: 'insensitive' } },
+        { firstName: { contains: term, mode: 'insensitive' } },
+        { lastName: { contains: term, mode: 'insensitive' } },
+        { email: { contains: term, mode: 'insensitive' } },
+      ];
+    }
+
+    const [total, rawUsers] = await Promise.all([
+      this.prisma.user.count({ where }),
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    const users = rawUsers.map((u) => UserMapper.toDomain(u));
+    return { users, total };
+  }
+
+  public async delete(id: string): Promise<void> {
+    await this.prisma.user.delete({
+      where: { id },
     });
   }
 }
