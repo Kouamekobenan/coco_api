@@ -1,0 +1,920 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+enum AppUniverse {
+  COCOTAILLE
+  COCOMOUSSO
+  MIXED
+}
+
+enum SalonRole {
+  CLIENT
+  COIFFEUR
+  SALON_MANAGER
+  SALON_OWNER
+  SUPER_ADMIN
+}
+
+enum SalonStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum BookingMode {
+  APPOINTMENT
+  WALK_IN
+  HYBRID
+}
+
+enum DepositRuleType {
+  FIXED_AMOUNT
+  PERCENTAGE
+}
+
+enum ResourceType {
+  SEAT
+  WASH_BASIN
+  CABIN
+  SPECIAL_TOOL
+}
+
+enum BookingStatus {
+  DRAFT
+  PENDING_DEPOSIT
+  CONFIRMED
+  CHECKED_IN
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  EXPIRED
+  RESCHEDULE_REQUESTED
+}
+
+enum PhaseType {
+  ACTIVE
+  PASSIVE // Ex: temps de pose coloration/soin, permettant un service court intercalé
+}
+
+enum QueueType {
+  WALK_IN
+  APPOINTMENT
+}
+
+enum QueueTicketStatus {
+  WAITING
+  CALLED
+  IN_SERVICE
+  DONE
+  LEFT
+  NO_SHOW
+}
+
+enum CustomerSegment {
+  NEW
+  REGULAR
+  INACTIVE
+  VIP
+}
+
+enum PaymentProvider {
+  ORANGE_MONEY
+  MTN_MOMO
+  MOOV_MONEY
+  WAVE
+  CASH
+}
+
+enum PaymentType {
+  DEPOSIT
+  FULL
+  REMAINING_BALANCE
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  REFUNDED
+}
+
+enum LedgerEntryType {
+  DEPOSIT_CREDIT
+  COMMISSION_DEBIT
+  PAYOUT
+  REFUND_DEBIT
+  ADJUSTMENT
+}
+
+enum LoyaltyScope {
+  GLOBAL // Coco Loyalty
+  SALON  // Salon Loyalty
+}
+
+enum LoyaltyTxType {
+  EARNED
+  REDEEMED
+  EXPIRED
+  CANCELLED_REFUND
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+  IN_APP
+  WHATSAPP
+}
+
+enum OtpPurpose {
+  LOGIN
+  PHONE_CHANGE_OLD
+  PHONE_CHANGE_NEW
+  ADMIN_2FA
+}
+
+enum TimeOffStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// =============================================================================
+// MODULE 01: AUTH & IDENTITY
+// =============================================================================
+
+model User {
+  id              String       @id @default(uuid())
+  phone           String       @unique // Format ivoirien normalisé (+225XXXXXXXXXX)
+  email           String?      @unique
+  firstName       String?
+  lastName        String?
+  avatarUrl       String?
+  defaultUniverse AppUniverse  @default(COCOMOUSSO)
+  isPhoneVerified Boolean      @default(false)
+  isActive        Boolean      @default(true)
+  isSuperAdmin    Boolean      @default(false)
+  twoFactorSecret String?
+  passwordHash    String       // Mot de passe haché (bcrypt)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  // Relations
+  memberships         SalonMember[]
+  sessions            Session[]
+  devices             UserDevice[]
+  bookings            Booking[]
+  reviews             Review[]
+  salonCustomers      SalonCustomer[]
+  loyaltyAccounts     LoyaltyAccount[]
+  customerNotes       CustomerNote[]
+  auditLogs           AuditLog[]
+  notificationPref    NotificationPreference?
+  staffProfile        Staff?
+
+  @@index([phone])
+}
+
+model SalonMember {
+  id        String    @id @default(uuid())
+  userId    String
+  salonId   String
+  role      SalonRole @default(COIFFEUR)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, salonId])
+  @@index([salonId, role])
+  @@index([userId])
+}
+
+model Session {
+  id           String    @id @default(uuid())
+  userId       String
+  deviceId     String?
+  refreshToken String    @unique
+  ipAddress    String?
+  userAgent    String?
+  revokedAt    DateTime?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device UserDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([refreshToken])
+}
+
+model UserDevice {
+  id         String    @id @default(uuid())
+  userId     String
+  deviceId   String    // Identifiant matériel/vendor
+  platform   String    // 'ios' | 'android'
+  pushToken  String?
+  appVersion String?
+  lastSeenAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@unique([userId, deviceId])
+  @@index([userId])
+}
+
+model OtpRequest {
+  id          String              @id @default(uuid())
+  phone       String              // Numéro cible (+225...)
+  codeHash    String              // Code haché
+  channel     NotificationChannel @default(SMS)
+  purpose     OtpPurpose          @default(LOGIN)
+  attempts    Int                 @default(0)
+  maxAttempts Int                 @default(3)
+  isVerified  Boolean             @default(false)
+  expiresAt   DateTime
+  createdAt   DateTime            @default(now())
+
+  @@index([phone, isVerified, expiresAt])
+}
+
+// =============================================================================
+// MODULE 02 & 03: SALON, GEO & VITRINE
+// =============================================================================
+
+model Salon {
+  id            String       @id @default(uuid())
+  name          String
+  slug          String       @unique
+  phone         String
+  whatsappPhone String?
+  email         String?
+  description   String?
+  universe      AppUniverse  @default(MIXED)
+  status        SalonStatus  @default(DRAFT)
+  
+  // Géolocalisation & repères ivoiriens
+  commune       String       // Ex: Cocody, Marcory, Yopougon, Plateau...
+  quartier      String       // Ex: Angré 8ème Tranche, Biétry, Niangon...
+  landmark      String       // Repère essentiel: "En face de la pharmacie X, carrefour Y"
+  latitude      Float
+  longitude     Float
+  address       String?
+
+  coverUrl      String?
+  logoUrl       String?
+  isVerified    Boolean      @default(false)
+  verifiedAt    DateTime?
+  
+  // Métriques agrégées
+  averageRating Float        @default(0.0)
+  reviewCount   Int          @default(0)
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  // Relations
+  experienceConfig SalonExperienceConfig?
+  members          SalonMember[]
+  hours            SalonHour[]
+  hourExceptions   SalonHourException[]
+  media            SalonMedia[]
+  promotions       SalonPromotion[]
+  services         Service[]
+  staff            Staff[]
+  resources        Resource[]
+  customers        SalonCustomer[]
+  bookings         Booking[]
+  queueTickets     QueueTicket[]
+  reviews          Review[]
+  payments         Payment[]
+  ledgerEntries    AccountingLedger[]
+  loyaltyAccounts  LoyaltyAccount[]
+  customerNotes    CustomerNote[]
+
+  @@index([status, universe])
+  @@index([commune, quartier])
+  @@index([latitude, longitude])
+}
+
+model SalonExperienceConfig {
+  id             String      @id @default(uuid())
+  salonId        String      @unique
+  theme          String      @default("default")
+  primaryColor   String      @default("#E05A47") // Thème Coco chaleureux
+  secondaryColor String      @default("#1A1A1A")
+  coverMediaUrl  String?
+  layout         String      @default("standard")
+  bookingMode    BookingMode @default(HYBRID)
+
+  // Activation des modules par le salon
+  enableQueue    Boolean     @default(true)
+  enableDeposit  Boolean     @default(true)
+  enableLoyalty  Boolean     @default(true)
+  
+  // Paramètres d'annulation et retards
+  cancelFreeLimitHours Int   @default(4) // Heures avant RDV pour annuler sans perdre l'acompte
+  delayAlertThresholdMin Int @default(20) // Seuil en min pour alerte retard cascade
+
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+}
+
+model SalonMedia {
+  id        String   @id @default(uuid())
+  salonId   String
+  url       String
+  mediaType String   @default("IMAGE") // 'IMAGE' | 'VIDEO'
+  category  String   @default("SHOWCASE") // 'SHOWCASE', 'TEAM', 'STYLE'
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, sortOrder])
+}
+
+model SalonHour {
+  id        String   @id @default(uuid())
+  salonId   String
+  dayOfWeek Int      // 0 = Dimanche, 1 = Lundi, ..., 6 = Samedi
+  openTime  String   // "08:30"
+  closeTime String   // "19:30"
+  isClosed  Boolean  @default(false)
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, dayOfWeek])
+}
+
+model SalonHourException {
+  id        String   @id @default(uuid())
+  salonId   String
+  date      DateTime @db.Date // Jour férié ou fermeture exceptionnelle
+  openTime  String?  // null si fermé toute la journée
+  closeTime String?
+  isClosed  Boolean  @default(true)
+  reason    String?  // Ex: "Tabaski", "Fête de l'Indépendance", "Inventaire"
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@unique([salonId, date])
+  @@index([salonId, date])
+}
+
+model SalonPromotion {
+  id             String    @id @default(uuid())
+  salonId        String
+  title          String
+  description    String?
+  discountType   String    // 'PERCENTAGE' | 'FIXED_AMOUNT'
+  discountValue  Decimal   @db.Decimal(10, 2)
+  startDate      DateTime
+  endDate        DateTime
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  salon Salon @relation(fields: [salonId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, isActive])
+}
+
+model Review {
+  id               String   @id @default(uuid())
+  salonId          String
+  bookingId        String   @unique // 1 seul avis par réservation COMPLETED
+  userId           String
+  rating           Int      // 1 à 5
+  comment          String?
+  isVerified       Boolean  @default(true) // Car liée à un booking terminé
+  isPublic         Boolean  @default(true)
+  moderationReason String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  salon   Salon   @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([salonId, rating])
+  @@index([userId])
+}
+
+// =============================================================================
+// MODULE 04: CATALOGUE & SERVICES
+// =============================================================================
+
+model Style {
+  id          String      @id @default(uuid())
+  name        String      // Ex: "Tresses collées", "Nappy braids", "Locks", "Dégradé américain"
+  slug        String      @unique
+  universe    AppUniverse @default(COCOMOUSSO)
+  description String?
+  imageUrl    String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  services Service[]
+
+  @@index([universe, isActive])
+}
+
+model Service {
+  id          String      @id @default(uuid())
+  salonId     String
+  styleId     String?
+  name        String
+  description String?
+  universe    AppUniverse @default(COCOMOUSSO)
+  isActive    Boolean     @default(true)
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  salon    Salon            @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  style    Style?           @relation(fields: [styleId], references: [id], onDelete: SetNull)
+  variants ServiceVariant[]
+  staff    StaffService[]
+
+  @@index([salonId, isActive])
+  @@index([styleId])
+}
+
+model ServiceVariant {
+  id                     String           @id @default(uuid())
+  serviceId              String
+  name                   String           // Ex: "Courtes", "Mi-longues", "Longues (avec rajouts)"
+  
+  // Durées (règle métier: min <= estimated <= max)
+  durationMin            Int              // En minutes (ex: 300 = 5h)
+  durationEstimated      Int              // En minutes (ex: 360 = 6h)
+  durationMax            Int              // En minutes (ex: 480 = 8h)
+  setupMinutes           Int              @default(15) // Préparation du poste
+  bufferMinutes          Int              @default(15) // Marge de nettoyage / repos
+  
+  // Tarification
+  priceFrom              Decimal          @db.Decimal(10, 2)
+  priceTo                Decimal?         @db.Decimal(10, 2)
+  
+  // Règles spécifiques Afrique / Côte d'Ivoire
+  requiresConsultation   Boolean          @default(false)
+  requiresDeposit        Boolean          @default(true)
+  depositRule            DepositRuleType  @default(FIXED_AMOUNT)
+  depositAmount          Decimal          @default(2000.00) @db.Decimal(10, 2)
+  requiresOwnMaterials   Boolean          @default(false) // Mèches apportées par cliente ou fournies par salon
+  isLongService          Boolean          @default(false) // Flag pour prestation > 5h nécessitant gestion pauses
+
+  // Contraintes de ressources
+  requiredResourceType   ResourceType?    // Fauteuil, Bac, Cabine
+  
+  isActive               Boolean          @default(true)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+
+  service       Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  bookings      Booking[]
+  staffServices StaffService[]
+
+  @@index([serviceId, isActive])
+}
+
+// =============================================================================
+// MODULE 05: BOOKING ENGINE (MOTEUR DE RÉSERVATION & PRESTATIONS LONGUES)
+// =============================================================================
+
+model Booking {
+  id                    String        @id @default(uuid())
+  idempotencyKey        String        @unique // Protection réseau instable / coupures CI
+  salonId               String
+  customerId            String        // Lien client CRM salon
+  userId                String?       // Lien utilisateur app si inscrit
+  variantId             String
+  staffId               String?       // Coiffeuse / Coiffeur assigné
+
+  status                BookingStatus @default(DRAFT)
+  
+  // Horaires prévisionnels et réels pour le moteur d'apprentissage
+  scheduledStart        DateTime      // Heure promise
+  projectedEnd          DateTime      // scheduledStart + setup + estimated + buffer
+  worstCaseEnd          DateTime      // Protection RDV suivants (scheduledStart + setup + max + buffer)
+  actualStart           DateTime?     // Démarrage effectif
+  actualEnd             DateTime?     // Clôture effective (apprentissage statistique médiane)
+  
+  // Suivi des retards et dérives
+  delayMinutes          Int           @default(0) // Dérive en temps réel
+  isDelayAlertSent      Boolean       @default(false)
+
+  // Acompte & Paiement
+  depositAmount         Decimal       @db.Decimal(10, 2)
+  totalPrice            Decimal       @db.Decimal(10, 2)
+  isDepositPaid         Boolean       @default(false)
+  depositPaidAt         DateTime?
+  holdExpiresAt         DateTime?     // Bloqué 15 min en attente de paiement acompte
+
+  cancellationReason    String?
+  cancelledAt           DateTime?
+  rescheduledFromId     String?
+  clientNotes           String?
+
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  salon         Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  customer      SalonCustomer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  variant       ServiceVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  staff         Staff?         @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  
+  phases        BookingPhase[]
+  payments      Payment[]
+  queueTicket   QueueTicket?
+  review        Review?
+
+  @@index([salonId, status])
+  @@index([staffId, scheduledStart])
+  @@index([customerId])
+  @@index([userId])
+  @@index([scheduledStart, projectedEnd])
+}
+
+model BookingPhase {
+  id              String       @id @default(uuid())
+  bookingId       String
+  phaseType       PhaseType    @default(ACTIVE)
+  name            String       // Ex: "Shampoing", "Application coloration", "Temps de pose", "Tressage"
+  sequenceOrder   Int          @default(1)
+  durationMinutes Int
+  resourceId      String?      // Bac ou Fauteuil monopolisé pendant cette phase
+  startedAt       DateTime?
+  endedAt         DateTime?
+
+  booking  Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  resource Resource? @relation(fields: [resourceId], references: [id], onDelete: SetNull)
+
+  @@index([bookingId, sequenceOrder])
+  @@index([resourceId])
+}
+
+// =============================================================================
+// MODULE 06: QUEUE & LIVE TRACKING (FILE D'ATTENTE HYBRIDE)
+// =============================================================================
+
+model QueueTicket {
+  id               String            @id @default(uuid())
+  salonId          String
+  customerId       String
+  bookingId        String?           @unique // 0-1 (peut provenir d'un RDV ou être un pure walk-in)
+  queueType        QueueType         @default(WALK_IN)
+  ticketNumber     String            // Ex: "A-012" ou "W-005"
+  status           QueueTicketStatus @default(WAITING)
+
+  // Estimations d'attente dynamiques
+  estimatedWaitMin Int               @default(0) // Fourchette min en min (ex: 120 = 2h)
+  estimatedWaitMax Int               @default(0) // Fourchette max en min (ex: 150 = 2h30)
+  projectedStart   DateTime?
+  
+  calledAt         DateTime?
+  callDeadlineAt   DateTime?         // Délai configurable pour se présenter (ex: 10 min)
+  servedAt         DateTime?
+  completedAt      DateTime?
+  qrCodeToken      String            @unique @default(uuid())
+
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  salon    Salon         @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  customer SalonCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  booking  Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([salonId, status])
+  @@index([customerId])
+  @@index([createdAt])
+}
+
+// =============================================================================
+// MODULE 07: SALON CRM
+// =============================================================================
+
+model SalonCustomer {
+  id              String          @id @default(uuid())
+  salonId         String
+  userId          String?         // Rattaché à User quand il crée son compte avec ce numéro
+  phone           String          // Identifiant client chez le salon
+  name            String
+  email           String?
+  
+  // Segmentation & métriques alimentées par booking.completed
+  segment         CustomerSegment @default(NEW)
+  visitCount      Int             @default(0)
+  totalSpent      Decimal         @default(0.00) @db.Decimal(12, 2)
+  lastVisitAt     DateTime?
+  
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  salon           Salon           @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user            User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  notes           CustomerNote[]
+  bookings        Booking[]
+  queueTickets    QueueTicket[]
+  loyaltyAccounts LoyaltyAccount[]
+
+  @@unique([salonId, phone]) // Un client est unique par téléphone dans un salon donné
+  @@index([salonId, segment])
+  @@index([userId])
+}
+
+model CustomerNote {
+  id              String   @id @default(uuid())
+  salonId         String
+  salonCustomerId String
+  authorId        String   // ID de l'utilisateur (Manager/Coiffeur) ayant rédigé la note
+  content         String
+  isPrivate       Boolean  @default(true) // Jamais visible par le client ni un autre salon
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  salon    Salon         @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  customer SalonCustomer @relation(fields: [salonCustomerId], references: [id], onDelete: Cascade)
+  author   User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([salonId, salonCustomerId])
+}
+
+// =============================================================================
+// MODULE 08: TEAM & CAPACITY
+// =============================================================================
+
+model Staff {
+  id           String   @id @default(uuid())
+  salonId      String
+  userId       String?  @unique // Si le coiffeur possède un compte utilisateur
+  firstName    String
+  lastName     String
+  displayName  String?
+  phone        String
+  avatarUrl    String?
+  bio          String?
+  roleTitle    String?  // Ex: "Spécialiste Braids", "Coloriste Senior"
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  salon        Salon              @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+  services     StaffService[]
+  workingHours StaffWorkingHour[]
+  breaks       StaffBreak[]
+  timeOffs     StaffTimeOff[]
+  bookings     Booking[]
+
+  @@index([salonId, isActive])
+}
+
+model StaffService {
+  id                     String   @id @default(uuid())
+  staffId                String
+  serviceId              String
+  variantId              String?
+  
+  // Durées personnalisées par coiffeuse (médiane d'apprentissage ou saisie manuelle)
+  customDurationMin      Int?
+  customDurationEstimated Int?
+  customDurationMax      Int?
+  isCapable              Boolean  @default(true)
+
+  staff   Staff           @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  service Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  variant ServiceVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@unique([staffId, serviceId, variantId])
+  @@index([staffId])
+  @@index([serviceId])
+}
+
+model StaffWorkingHour {
+  id        String   @id @default(uuid())
+  staffId   String
+  dayOfWeek Int      // 0 à 6
+  startTime String   // "08:00"
+  endTime   String   // "18:00"
+  isOff     Boolean  @default(false)
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, dayOfWeek])
+}
+
+model StaffBreak {
+  id        String   @id @default(uuid())
+  staffId   String
+  dayOfWeek Int?     // Récurrent par jour de semaine
+  date      DateTime? @db.Date // Ou ponctuel pour un jour précis
+  startTime String   // "13:00"
+  endTime   String   // "14:00"
+  reason    String?  // "Déjeuner", "Prière", "Repos"
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+}
+
+model StaffTimeOff {
+  id        String        @id @default(uuid())
+  staffId   String
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  status    TimeOffStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+
+  staff Staff @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([staffId, startDate, endDate])
+}
+
+model Resource {
+  id        String       @id @default(uuid())
+  salonId   String
+  name      String       // Ex: "Fauteuil 1", "Bac à shampoing A", "Cabine VIP"
+  type      ResourceType @default(SEAT)
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  salon         Salon          @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  bookingPhases BookingPhase[]
+
+  @@index([salonId, type, isActive])
+}
+
+// =============================================================================
+// MODULE 09: PAYMENTS, ACCOUNTING LEDGER & LOYALTY
+// =============================================================================
+
+model Payment {
+  id               String          @id @default(uuid())
+  idempotencyKey   String          @unique
+  bookingId        String
+  salonId          String
+  provider         PaymentProvider
+  providerTxId     String?         @unique // Référence retournée par Wave, Orange, MTN, Moov
+  externalRef      String?         // Référence externe agrégateur
+  amount           Decimal         @db.Decimal(10, 2)
+  commissionAmount Decimal         @default(0.00) @db.Decimal(10, 2) // Part Coco
+  currency         String          @default("XOF")
+  type             PaymentType     @default(DEPOSIT)
+  status           PaymentStatus   @default(INITIATED)
+  rawWebhookData   Json?           // Tracé complet du payload webhook
+  paidAt           DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  booking       Booking            @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  salon         Salon              @relation(fields: [salonId], references: [id], onDelete: Restrict)
+  refunds       Refund[]
+  ledgerEntries AccountingLedger[]
+
+  @@index([salonId, status])
+  @@index([bookingId])
+  @@index([providerTxId])
+}
+
+model Refund {
+  id               String   @id @default(uuid())
+  paymentId        String
+  amount           Decimal  @db.Decimal(10, 2)
+  reason           String?
+  providerRefundId String?  @unique
+  status           String   @default("SUCCEEDED")
+  createdAt        DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+}
+
+// Journal comptable immuable (append-only)
+model AccountingLedger {
+  id           String          @id @default(uuid())
+  salonId      String
+  paymentId    String?
+  entryType    LedgerEntryType
+  amount       Decimal         @db.Decimal(12, 2) // Montant du mouvement (+ ou -)
+  balanceAfter Decimal         @db.Decimal(12, 2) // Solde calculé après mouvement
+  description  String
+  createdAt    DateTime        @default(now())
+
+  salon   Salon    @relation(fields: [salonId], references: [id], onDelete: Restrict)
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+
+  @@index([salonId, createdAt])
+}
+
+model LoyaltyAccount {
+  id              String          @id @default(uuid())
+  scope           LoyaltyScope    @default(GLOBAL)
+  userId          String?         // Si scope == GLOBAL (Coco Loyalty)
+  salonCustomerId String?         // Si scope == SALON (Salon Loyalty)
+  salonId         String?         // Requis si scope == SALON
+  pointsBalance   Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user         User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customer     SalonCustomer?       @relation(fields: [salonCustomerId], references: [id], onDelete: Cascade)
+  salon        Salon?               @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  transactions LoyaltyTransaction[]
+
+  @@unique([scope, userId, salonCustomerId, salonId])
+  @@index([userId])
+  @@index([salonCustomerId])
+}
+
+model LoyaltyTransaction {
+  id               String         @id @default(uuid())
+  loyaltyAccountId String
+  points           Int            // Positif pour gain, négatif pour utilisation
+  txType           LoyaltyTxType
+  description      String?
+  referenceId      String?        // ID du booking ou de la campagne
+  createdAt        DateTime       @default(now())
+
+  account LoyaltyAccount @relation(fields: [loyaltyAccountId], references: [id], onDelete: Cascade)
+
+  @@index([loyaltyAccountId])
+}
+
+model NotificationPreference {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  pushEnabled     Boolean  @default(true)
+  smsEnabled      Boolean  @default(true) // Crucial en CI
+  inAppEnabled    Boolean  @default(true)
+  whatsappEnabled Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =============================================================================
+// MODULE 10: AUDIT, SUPER ADMIN & PARAMÈTRES PLATEFORME
+// =============================================================================
+
+// Immuable (Append-only) pour sécurité et traçabilité légale / RGPD / 2FA
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?  // User ID ayant fait l'action
+  salonId    String?  // Salon concerné si action scopée
+  action     String   // Ex: "SALON_SUSPENDED", "CRM_NOTE_VIEWED", "PAYMENT_OVERRIDE"
+  entityType String   // "Salon", "Booking", "Payment", "CustomerNote"
+  entityId   String
+  beforeData Json?    // Snapshot état avant modification
+  afterData  Json?    // Snapshot état après modification
+  ipAddress  String?
+  userAgent  String?
+  justification String? // Obligatoire pour accès aux notes CRM par un Admin
+  createdAt  DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([salonId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+model PlatformSetting {
+  id          String   @id @default(uuid())
+  key         String   @unique // Ex: "COMMISSION_PERCENTAGE", "DEFAULT_HOLD_MINUTES"
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt
+}
