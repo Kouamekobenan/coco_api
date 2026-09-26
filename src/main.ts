@@ -45,7 +45,7 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // ── Swagger / OpenAPI ─────────────────────────────────────────────────────
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.ENABLE_SWAGGER !== 'false') {
     const config = new DocumentBuilder()
       .setTitle('Coco API')
       .setDescription(
@@ -97,9 +97,9 @@ async function bootstrap() {
   const port = process.env.PORT ?? 3000;
   await app.listen(port);
 
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`\n🌺 Coco API démarrée sur http://localhost:${port}`);
-    console.log(`📚 Swagger disponible sur http://localhost:${port}/docs\n`);
+  console.log(`\n🌺 Coco API démarrée sur le port ${port}`);
+  if (process.env.ENABLE_SWAGGER !== 'false') {
+    console.log(`📚 Swagger disponible sur /docs\n`);
   }
 }
 await bootstrap();
