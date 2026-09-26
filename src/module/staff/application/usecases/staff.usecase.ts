@@ -89,7 +89,7 @@ export class GetStaffByIdUseCase {
   public async execute(id: string): Promise<StaffResponseDto> {
     const staff = await this.staffRepository.findById(id);
     if (!staff) {
-      throw new StaffNotFoundException(id);
+      throw new StaffNotFoundException("Membre du staff non trouvé");
     }
     return StaffDtoMapper.toStaffResponse(staff);
   }

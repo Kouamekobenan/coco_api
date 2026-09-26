@@ -47,7 +47,7 @@ export class BookingsController {
 
   @Post()
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Créer une réservation (Idempotente)',
@@ -79,7 +79,7 @@ export class BookingsController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Lister et filtrer les réservations du salon' })
   @ApiResponse({ status: 200, type: BookingListResponseDto })
   public async search(
@@ -91,7 +91,7 @@ export class BookingsController {
 
   @Get(':bookingId')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Obtenir le détail d\'une réservation et de ses phases' })
   @ApiResponse({ status: 200, type: BookingResponseDto })
   public async getById(
@@ -104,7 +104,7 @@ export class BookingsController {
 
   @Post(':bookingId/confirm-deposit')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Confirmer le paiement de l\'acompte (verrouille définitivement le créneau)' })
   @ApiResponse({ status: 200, type: BookingResponseDto })
   public async confirmDeposit(
@@ -117,7 +117,7 @@ export class BookingsController {
 
   @Post(':bookingId/check-in')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Enregistrer l\'arrivée du client au salon (Check-in)' })
   @ApiResponse({ status: 200, type: BookingResponseDto })
   public async checkIn(
@@ -130,7 +130,7 @@ export class BookingsController {
 
   @Post(':bookingId/start')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Démarrer la prestation (Passe en cours / IN_PROGRESS)' })
   @ApiResponse({ status: 200, type: BookingResponseDto })
   public async start(
@@ -143,7 +143,7 @@ export class BookingsController {
 
   @Post(':bookingId/complete')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Clôturer la prestation avec succès',
     description:
@@ -160,7 +160,7 @@ export class BookingsController {
 
   @Post(':bookingId/cancel')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Annuler la réservation avec motif' })
   @ApiResponse({ status: 200, type: BookingResponseDto })
   public async cancel(
@@ -174,7 +174,7 @@ export class BookingsController {
 
   @Post(':bookingId/no-show')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Marquer le rendez-vous comme Non Présenté (No-Show)' })
   @ApiResponse({ status: 200, type: BookingResponseDto })
   public async noShow(
@@ -187,7 +187,7 @@ export class BookingsController {
 
   @Patch(':bookingId/delay')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Ajuster la dérive ou le retard en direct',
     description:

@@ -27,7 +27,7 @@ import { BookingPhasesUseCase } from '../../application/usecases/booking-phases.
 @ApiTags('Booking Phases — Étapes & Ressources Monopolisées')
 @Controller({ path: 'salons/:salonId/bookings/:bookingId/phases', version: '1' })
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
 export class BookingPhasesController {
   constructor(private readonly phasesUseCase: BookingPhasesUseCase) {}
 

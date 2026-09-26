@@ -32,7 +32,7 @@ import { RefundPaymentUseCase } from '../../application/usecases/refund-payment.
 @ApiTags('Payments — Paiements & Acomptes Mobile Money / Cash')
 @Controller({ path: 'salons/:salonId/payments', version: '1' })
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
 export class PaymentsController {
   constructor(
     private readonly initiatePaymentUseCase: InitiatePaymentUseCase,

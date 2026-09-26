@@ -19,7 +19,7 @@ import { GetSalonLedgerUseCase } from '../../application/usecases/get-salon-ledg
 @ApiTags('Accounting Ledger — Grand Livre & Séquestre Salon')
 @Controller({ path: 'salons/:salonId/ledger', version: '1' })
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
 export class LedgerController {
   constructor(private readonly getLedgerUseCase: GetSalonLedgerUseCase) {}
 
