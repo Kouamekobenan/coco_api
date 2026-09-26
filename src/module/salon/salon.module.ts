@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { CloudinaryModule } from '../../common/cloudinary/cloudinary.module.js';
 
 // Domain Token & Interface
 import { SALON_REPOSITORY } from './domain/repositories/salon.repository.interface.js';
@@ -18,6 +19,11 @@ import { UpdateSalonUseCase } from './application/usecases/update-salon.usecase.
 import { UpdateSalonStatusUseCase } from './application/usecases/update-salon-status.usecase.js';
 import { VerifySalonUseCase } from './application/usecases/verify-salon.usecase.js';
 import { DeleteSalonUseCase } from './application/usecases/delete-salon.usecase.js';
+import {
+  UploadSalonCoverUseCase,
+  UploadSalonLogoUseCase,
+  UploadSalonMediaFileUseCase,
+} from './application/usecases/upload-salon-images.usecase.js';
 
 // Application Use Cases - Expérience & Vitrine
 import {
@@ -57,7 +63,7 @@ import { SalonMediaController } from './presentation/controllers/salon-media.con
 import { SalonPromotionsController } from './presentation/controllers/salon-promotions.controller.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, CloudinaryModule],
   controllers: [
     SalonsController,
     SalonExperienceController,
@@ -83,6 +89,11 @@ import { SalonPromotionsController } from './presentation/controllers/salon-prom
     VerifySalonUseCase,
     DeleteSalonUseCase,
 
+    // Cloudinary Upload Use Cases
+    UploadSalonLogoUseCase,
+    UploadSalonCoverUseCase,
+    UploadSalonMediaFileUseCase,
+
     // Experience Use Cases
     GetSalonExperienceUseCase,
     UpdateSalonExperienceUseCase,
@@ -105,6 +116,13 @@ import { SalonPromotionsController } from './presentation/controllers/salon-prom
     UpdateSalonPromotionUseCase,
     DeleteSalonPromotionUseCase,
   ],
-  exports: [SALON_REPOSITORY, GetSalonByIdUseCase, GetSalonBySlugUseCase],
+  exports: [
+    SALON_REPOSITORY,
+    GetSalonByIdUseCase,
+    GetSalonBySlugUseCase,
+    UploadSalonLogoUseCase,
+    UploadSalonCoverUseCase,
+    UploadSalonMediaFileUseCase,
+  ],
 })
 export class SalonModule {}

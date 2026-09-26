@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module.js';
 import { SalonModule } from '../salon/salon.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { CloudinaryModule } from '../../common/cloudinary/cloudinary.module.js';
 
 // Domain Tokens
 import { SERVICE_REPOSITORY } from './domain/repositories/service.repository.interface.js';
@@ -19,6 +20,7 @@ import {
   GetStyleBySlugUseCase,
   GetStylesUseCase,
   UpdateStyleUseCase,
+  UploadStyleImageUseCase,
 } from './application/usecases/style.usecase.js';
 
 // Application Use Cases - Services
@@ -46,7 +48,7 @@ import { ServicesController } from './presentation/controllers/services.controll
 import { ServiceVariantsController } from './presentation/controllers/service-variants.controller.js';
 
 @Module({
-  imports: [PrismaModule, SalonModule, AuthModule],
+  imports: [PrismaModule, SalonModule, AuthModule, CloudinaryModule],
   controllers: [StylesController, ServicesController, ServiceVariantsController],
   providers: [
     // IoC Port -> Adapter Bindings (DDD)
@@ -65,6 +67,7 @@ import { ServiceVariantsController } from './presentation/controllers/service-va
     GetStyleByIdUseCase,
     GetStyleBySlugUseCase,
     UpdateStyleUseCase,
+    UploadStyleImageUseCase,
     DeleteStyleUseCase,
 
     // Service Use Cases
@@ -87,6 +90,7 @@ import { ServiceVariantsController } from './presentation/controllers/service-va
     STYLE_REPOSITORY,
     GetServiceByIdUseCase,
     GetServiceVariantByIdUseCase,
+    UploadStyleImageUseCase,
   ],
 })
 export class ServiceModule {}

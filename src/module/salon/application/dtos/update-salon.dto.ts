@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
@@ -83,6 +84,7 @@ export class UpdateSalonDto {
   @ApiPropertyOptional({
     example: 5.3599,
   })
+  @Type(() => Number)
   @IsNumber()
   @Min(-90)
   @Max(90)
@@ -92,6 +94,7 @@ export class UpdateSalonDto {
   @ApiPropertyOptional({
     example: -4.0083,
   })
+  @Type(() => Number)
   @IsNumber()
   @Min(-180)
   @Max(180)
@@ -118,4 +121,20 @@ export class UpdateSalonDto {
   @IsString()
   @IsOptional()
   logoUrl?: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Nouveau fichier image du logo',
+  })
+  @IsOptional()
+  logo?: any;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Nouveau fichier image de couverture',
+  })
+  @IsOptional()
+  cover?: any;
 }

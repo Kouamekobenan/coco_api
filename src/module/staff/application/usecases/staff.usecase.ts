@@ -1,15 +1,18 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { IStaffRepository } from '../../domain/repositories/staff.repository.interface.js';
 import { STAFF_REPOSITORY } from '../../domain/repositories/staff.repository.interface.js';
 import type { ISalonRepository } from '../../../salon/domain/repositories/salon.repository.interface.js';
 import { SALON_REPOSITORY } from '../../../salon/domain/repositories/salon.repository.interface.js';
+import type { FileUploader } from '../../../../common/cloudinary/file-upload.interface.js';
+import { FileUploaderName } from '../../../../common/cloudinary/file-upload.interface.js';
 import { CreateStaffDto, UpdateStaffDto } from '../dtos/create-staff.dto.js';
 import { StaffResponseDto } from '../dtos/staff-response.dto.js';
 import { StaffEntity } from '../../domain/entities/staff.entity.js';
 import { SalonNotFoundException } from '../../../salon/domain/exceptions/salon-domain.exception.js';
 import { StaffNotFoundException } from '../../domain/exceptions/staff-domain.exception.js';
 import { StaffDtoMapper } from '../dtos/staff-dto.mapper.js';
+import 'multer';
 
 @Injectable()
 export class CreateStaffUseCase {
@@ -18,12 +21,24 @@ export class CreateStaffUseCase {
     private readonly staffRepository: IStaffRepository,
     @Inject(SALON_REPOSITORY)
     private readonly salonRepository: ISalonRepository,
+    @Optional()
+    @Inject(FileUploaderName)
+    private readonly fileUploader?: FileUploader,
   ) {}
 
-  public async execute(salonId: string, dto: CreateStaffDto): Promise<StaffResponseDto> {
+  public async execute(
+    salonId: string,
+    dto: CreateStaffDto,
+    avatarFile?: Express.Multer.File,
+  ): Promise<StaffResponseDto> {
     const salon = await this.salonRepository.findById(salonId);
     if (!salon) {
       throw new SalonNotFoundException(salonId);
+    }
+
+    let avatarUrl = dto.avatarUrl;
+    if (this.fileUploader && avatarFile) {
+      avatarUrl = await this.fileUploader.upload(avatarFile, 'image');
     }
 
     const staff = StaffEntity.create({
@@ -34,7 +49,7 @@ export class CreateStaffUseCase {
       lastName: dto.lastName,
       displayName: dto.displayName,
       phone: dto.phone,
-      avatarUrl: dto.avatarUrl,
+      avatarUrl,
       bio: dto.bio,
       roleTitle: dto.roleTitle,
     });
@@ -85,16 +100,25 @@ export class UpdateStaffUseCase {
   constructor(
     @Inject(STAFF_REPOSITORY)
     private readonly staffRepository: IStaffRepository,
+    @Optional()
+    @Inject(FileUploaderName)
+    private readonly fileUploader?: FileUploader,
   ) {}
 
   public async execute(
     salonId: string,
     staffId: string,
     dto: UpdateStaffDto,
+    avatarFile?: Express.Multer.File,
   ): Promise<StaffResponseDto> {
     const staff = await this.staffRepository.findById(staffId);
     if (!staff || staff.getSalonId() !== salonId) {
       throw new StaffNotFoundException(staffId);
+    }
+
+    let avatarUrl = dto.avatarUrl;
+    if (this.fileUploader && avatarFile) {
+      avatarUrl = await this.fileUploader.upload(avatarFile, 'image');
     }
 
     staff.updateProfile({
@@ -103,11 +127,38 @@ export class UpdateStaffUseCase {
       lastName: dto.lastName,
       displayName: dto.displayName,
       phone: dto.phone,
-      avatarUrl: dto.avatarUrl,
+      avatarUrl,
       bio: dto.bio,
       roleTitle: dto.roleTitle,
       isActive: dto.isActive,
     });
+
+    await this.staffRepository.update(staff);
+    return StaffDtoMapper.toStaffResponse(staff);
+  }
+}
+
+@Injectable()
+export class UploadStaffAvatarUseCase {
+  constructor(
+    @Inject(STAFF_REPOSITORY)
+    private readonly staffRepository: IStaffRepository,
+    @Inject(FileUploaderName)
+    private readonly fileUploader: FileUploader,
+  ) {}
+
+  public async execute(
+    salonId: string,
+    staffId: string,
+    file: Express.Multer.File,
+  ): Promise<StaffResponseDto> {
+    const staff = await this.staffRepository.findById(staffId);
+    if (!staff || staff.getSalonId() !== salonId) {
+      throw new StaffNotFoundException(staffId);
+    }
+
+    const avatarUrl = await this.fileUploader.upload(file, 'image');
+    staff.updateProfile({ avatarUrl });
 
     await this.staffRepository.update(staff);
     return StaffDtoMapper.toStaffResponse(staff);

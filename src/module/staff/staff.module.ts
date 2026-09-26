@@ -3,6 +3,7 @@ import { PrismaModule } from '../../prisma/prisma.module.js';
 import { SalonModule } from '../salon/salon.module.js';
 import { ServiceModule } from '../service/service.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { CloudinaryModule } from '../../common/cloudinary/cloudinary.module.js';
 
 // Domain Tokens
 import { STAFF_REPOSITORY } from './domain/repositories/staff.repository.interface.js';
@@ -19,6 +20,7 @@ import {
   GetSalonStaffUseCase,
   GetStaffByIdUseCase,
   UpdateStaffUseCase,
+  UploadStaffAvatarUseCase,
 } from './application/usecases/staff.usecase.js';
 
 // Application Use Cases - Staff Services
@@ -56,7 +58,7 @@ import { StaffScheduleController } from './presentation/controllers/staff-schedu
 import { ResourcesController } from './presentation/controllers/resources.controller.js';
 
 @Module({
-  imports: [PrismaModule, SalonModule, ServiceModule, AuthModule],
+  imports: [PrismaModule, SalonModule, ServiceModule, AuthModule, CloudinaryModule],
   controllers: [
     StaffController,
     StaffServicesController,
@@ -79,6 +81,7 @@ import { ResourcesController } from './presentation/controllers/resources.contro
     GetSalonStaffUseCase,
     GetStaffByIdUseCase,
     UpdateStaffUseCase,
+    UploadStaffAvatarUseCase,
     DeleteStaffUseCase,
 
     // Staff Services Use Cases
@@ -108,6 +111,7 @@ import { ResourcesController } from './presentation/controllers/resources.contro
     RESOURCE_REPOSITORY,
     GetStaffByIdUseCase,
     GetResourceByIdUseCase,
+    UploadStaffAvatarUseCase,
   ],
 })
 export class StaffModule {}

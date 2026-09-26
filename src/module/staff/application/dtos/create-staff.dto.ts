@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class CreateStaffDto {
   @ApiPropertyOptional({
@@ -48,11 +48,19 @@ export class CreateStaffDto {
 
   @ApiPropertyOptional({
     example: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb',
-    description: 'Photo de profil / avatar',
+    description: 'URL de la photo de profil / avatar',
   })
   @IsString()
   @IsOptional()
   avatarUrl?: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Fichier photo de profil / avatar à téléverser sur Cloudinary',
+  })
+  @IsOptional()
+  avatar?: any;
 
   @ApiPropertyOptional({
     example: 'Passionnée de nappy hair et coiffures protectrices depuis 8 ans.',
@@ -104,6 +112,14 @@ export class UpdateStaffDto {
   @IsOptional()
   avatarUrl?: string;
 
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Nouveau fichier photo de profil / avatar à téléverser sur Cloudinary',
+  })
+  @IsOptional()
+  avatar?: any;
+
   @ApiPropertyOptional({ example: 'Bio mise à jour...' })
   @IsString()
   @IsOptional()
@@ -115,6 +131,7 @@ export class UpdateStaffDto {
   roleTitle?: string;
 
   @ApiPropertyOptional({ example: true })
+  @IsBoolean()
   @IsOptional()
   isActive?: boolean;
 }

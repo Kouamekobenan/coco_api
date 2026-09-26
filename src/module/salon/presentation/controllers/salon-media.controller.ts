@@ -8,10 +8,15 @@ import {
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -28,8 +33,10 @@ import {
   GetSalonMediaUseCase,
   ReorderSalonMediaUseCase,
 } from '../../application/usecases/salon-media.usecase.js';
+import { UploadSalonMediaFileUseCase } from '../../application/usecases/upload-salon-images.usecase.js';
 import { Public } from '../../../auth/infrastructure/security/public.decorator.js';
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
+import 'multer';
 
 @ApiTags('Salons — Médias & Vitrine')
 @Controller({ path: 'salons/:salonId/media', version: '1' })
@@ -37,6 +44,7 @@ export class SalonMediaController {
   constructor(
     private readonly getSalonMediaUseCase: GetSalonMediaUseCase,
     private readonly addSalonMediaUseCase: AddSalonMediaUseCase,
+    private readonly uploadSalonMediaFileUseCase: UploadSalonMediaFileUseCase,
     private readonly reorderSalonMediaUseCase: ReorderSalonMediaUseCase,
     private readonly deleteSalonMediaUseCase: DeleteSalonMediaUseCase,
   ) {}
@@ -63,8 +71,8 @@ export class SalonMediaController {
   @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Ajouter une photo ou vidéo à la vitrine',
-    description: 'Ajoute un élément média (URL Cloudinary/S3) avec sa catégorie.',
+    summary: 'Ajouter un lien média (URL Cloudinary existante) à la vitrine',
+    description: 'Ajoute un élément média avec sa catégorie à partir d\'une URL.',
   })
   @ApiParam({ name: 'salonId', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
   @ApiResponse({
@@ -77,6 +85,56 @@ export class SalonMediaController {
     @Body() dto: CreateSalonMediaDto,
   ): Promise<SalonMediaResponseDto> {
     return this.addSalonMediaUseCase.execute(salonId, dto);
+  }
+
+  @Post('upload')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @HttpCode(HttpStatus.CREATED)
+  @ApiOperation({
+    summary: 'Téléverser directement un fichier média (image ou vidéo) vers Cloudinary pour la vitrine',
+    description: 'Envoie un fichier via multipart/form-data, le téléverse sur Cloudinary et l’enregistre dans les médias du salon.',
+  })
+  @ApiParam({ name: 'salonId', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Fichier image ou vidéo à téléverser',
+        },
+        category: {
+          type: 'string',
+          enum: ['SHOWCASE', 'TEAM', 'STYLE'],
+          default: 'SHOWCASE',
+          description: 'Catégorie du média',
+        },
+        mediaType: {
+          type: 'string',
+          enum: ['IMAGE', 'VIDEO'],
+          default: 'IMAGE',
+          description: 'Type du média',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: 'Fichier téléversé sur Cloudinary et média créé avec succès.',
+    type: SalonMediaResponseDto,
+  })
+  public async uploadMediaFile(
+    @Param('salonId') salonId: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('category') category?: 'SHOWCASE' | 'TEAM' | 'STYLE',
+    @Body('mediaType') mediaType?: 'IMAGE' | 'VIDEO',
+  ): Promise<SalonMediaResponseDto> {
+    return this.uploadSalonMediaFileUseCase.execute(salonId, file, category, mediaType);
   }
 
   @Patch('reorder')

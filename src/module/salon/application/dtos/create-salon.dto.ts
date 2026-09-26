@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
@@ -102,6 +103,7 @@ export class CreateSalonDto {
     example: 5.3599,
     description: 'Latitude GPS (Abidjan ~ 5.36)',
   })
+  @Type(() => Number)
   @IsNumber({}, { message: 'La latitude doit être un nombre.' })
   @Min(-90)
   @Max(90)
@@ -111,6 +113,7 @@ export class CreateSalonDto {
     example: -4.0083,
     description: 'Longitude GPS (Abidjan ~ -4.01)',
   })
+  @Type(() => Number)
   @IsNumber({}, { message: 'La longitude doit être un nombre.' })
   @Min(-180)
   @Max(180)
@@ -134,9 +137,25 @@ export class CreateSalonDto {
 
   @ApiPropertyOptional({
     example: 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e',
-    description: 'Logo du salon',
+    description: 'Logo du salon (URL)',
   })
   @IsString()
   @IsOptional()
   logoUrl?: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Fichier image du logo à téléverser sur Cloudinary',
+  })
+  @IsOptional()
+  logo?: any;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Fichier image de couverture à téléverser sur Cloudinary',
+  })
+  @IsOptional()
+  cover?: any;
 }

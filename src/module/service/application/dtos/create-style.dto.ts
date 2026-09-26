@@ -38,10 +38,19 @@ export class CreateStyleDto {
 
   @ApiPropertyOptional({
     example: 'https://images.unsplash.com/photo-1560066984-138dadb4c035',
+    description: 'URL de l\'image d\'illustration du style',
   })
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Fichier image d\'illustration à téléverser sur Cloudinary',
+  })
+  @IsOptional()
+  image?: any;
 }
 
 export class UpdateStyleDto {
@@ -65,4 +74,12 @@ export class UpdateStyleDto {
   @IsString()
   @IsOptional()
   imageUrl?: string;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'binary',
+    description: 'Nouveau fichier image d\'illustration à téléverser sur Cloudinary',
+  })
+  @IsOptional()
+  image?: any;
 }

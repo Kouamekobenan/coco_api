@@ -1,7 +1,9 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import type { IStyleRepository } from '../../domain/repositories/style.repository.interface.js';
 import { STYLE_REPOSITORY } from '../../domain/repositories/style.repository.interface.js';
+import type { FileUploader } from '../../../../common/cloudinary/file-upload.interface.js';
+import { FileUploaderName } from '../../../../common/cloudinary/file-upload.interface.js';
 import { CreateStyleDto, UpdateStyleDto } from '../dtos/create-style.dto.js';
 import { StyleQueryDto } from '../dtos/style-query.dto.js';
 import { StyleResponseDto } from '../dtos/style-response.dto.js';
@@ -12,15 +14,22 @@ import {
   StyleSlugAlreadyExistsException,
 } from '../../domain/exceptions/service-domain.exception.js';
 import { ServiceDtoMapper } from '../dtos/service-dto.mapper.js';
+import 'multer';
 
 @Injectable()
 export class CreateStyleUseCase {
   constructor(
     @Inject(STYLE_REPOSITORY)
     private readonly styleRepository: IStyleRepository,
+    @Optional()
+    @Inject(FileUploaderName)
+    private readonly fileUploader?: FileUploader,
   ) {}
 
-  public async execute(dto: CreateStyleDto): Promise<StyleResponseDto> {
+  public async execute(
+    dto: CreateStyleDto,
+    imageFile?: Express.Multer.File,
+  ): Promise<StyleResponseDto> {
     const rawSlug = dto.slug && dto.slug.trim().length > 0 ? dto.slug : dto.name;
     const slug = SalonSlug.slugify(rawSlug);
 
@@ -29,13 +38,18 @@ export class CreateStyleUseCase {
       throw new StyleSlugAlreadyExistsException(slug);
     }
 
+    let imageUrl = dto.imageUrl;
+    if (this.fileUploader && imageFile) {
+      imageUrl = await this.fileUploader.upload(imageFile, 'image');
+    }
+
     const style = StyleEntity.create({
       id: randomUUID(),
       name: dto.name,
       slug,
       universe: dto.universe,
       description: dto.description,
-      imageUrl: dto.imageUrl,
+      imageUrl,
     });
 
     await this.styleRepository.save(style);
@@ -103,20 +117,55 @@ export class UpdateStyleUseCase {
   constructor(
     @Inject(STYLE_REPOSITORY)
     private readonly styleRepository: IStyleRepository,
+    @Optional()
+    @Inject(FileUploaderName)
+    private readonly fileUploader?: FileUploader,
   ) {}
 
-  public async execute(id: string, dto: UpdateStyleDto): Promise<StyleResponseDto> {
+  public async execute(
+    id: string,
+    dto: UpdateStyleDto,
+    imageFile?: Express.Multer.File,
+  ): Promise<StyleResponseDto> {
     const style = await this.styleRepository.findById(id);
     if (!style) {
       throw new StyleNotFoundException(id);
+    }
+
+    let imageUrl = dto.imageUrl;
+    if (this.fileUploader && imageFile) {
+      imageUrl = await this.fileUploader.upload(imageFile, 'image');
     }
 
     style.update({
       name: dto.name,
       universe: dto.universe,
       description: dto.description,
-      imageUrl: dto.imageUrl,
+      imageUrl,
     });
+
+    await this.styleRepository.update(style);
+    return ServiceDtoMapper.toStyleResponse(style);
+  }
+}
+
+@Injectable()
+export class UploadStyleImageUseCase {
+  constructor(
+    @Inject(STYLE_REPOSITORY)
+    private readonly styleRepository: IStyleRepository,
+    @Inject(FileUploaderName)
+    private readonly fileUploader: FileUploader,
+  ) {}
+
+  public async execute(id: string, file: Express.Multer.File): Promise<StyleResponseDto> {
+    const style = await this.styleRepository.findById(id);
+    if (!style) {
+      throw new StyleNotFoundException(id);
+    }
+
+    const imageUrl = await this.fileUploader.upload(file, 'image');
+    style.update({ imageUrl });
 
     await this.styleRepository.update(style);
     return ServiceDtoMapper.toStyleResponse(style);

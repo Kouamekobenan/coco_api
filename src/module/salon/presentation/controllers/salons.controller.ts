@@ -9,10 +9,16 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -36,12 +42,17 @@ import { UpdateSalonUseCase } from '../../application/usecases/update-salon.usec
 import { UpdateSalonStatusUseCase } from '../../application/usecases/update-salon-status.usecase.js';
 import { VerifySalonUseCase } from '../../application/usecases/verify-salon.usecase.js';
 import { DeleteSalonUseCase } from '../../application/usecases/delete-salon.usecase.js';
+import {
+  UploadSalonCoverUseCase,
+  UploadSalonLogoUseCase,
+} from '../../application/usecases/upload-salon-images.usecase.js';
 
 // Security
 import { Public } from '../../../auth/infrastructure/security/public.decorator.js';
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 import { CurrentUser } from '../../../auth/infrastructure/security/current-user.decorator.js';
 import type { TokenPayload } from '../../../auth/application/ports/token-service.port.js';
+import 'multer';
 
 @ApiTags('Salons')
 @Controller({ path: 'salons', version: '1' })
@@ -56,16 +67,111 @@ export class SalonsController {
     private readonly updateSalonStatusUseCase: UpdateSalonStatusUseCase,
     private readonly verifySalonUseCase: VerifySalonUseCase,
     private readonly deleteSalonUseCase: DeleteSalonUseCase,
+    private readonly uploadSalonLogoUseCase: UploadSalonLogoUseCase,
+    private readonly uploadSalonCoverUseCase: UploadSalonCoverUseCase,
   ) {}
 
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'logo', maxCount: 1 },
+      { name: 'cover', maxCount: 1 },
+      { name: 'coverImage', maxCount: 1 },
+    ]),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Formulaire de création d\'un salon avec images (Cloudinary)',
+    schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          example: 'Salon Ébène Prestige',
+          description: 'Nom commercial du salon',
+        },
+        slug: {
+          type: 'string',
+          example: 'salon-ebene-prestige',
+          description: 'Slug URL personnalisé (optionnel)',
+        },
+        phone: {
+          type: 'string',
+          example: '+2250701020304',
+          description: 'Téléphone principal (+225)',
+        },
+        whatsappPhone: {
+          type: 'string',
+          example: '+2250701020304',
+          description: 'Numéro WhatsApp (optionnel)',
+        },
+        email: {
+          type: 'string',
+          example: 'contact@ebene-prestige.ci',
+          description: 'Adresse email (optionnelle)',
+        },
+        description: {
+          type: 'string',
+          example: 'Salon de coiffure afro haut de gamme, spécialisé en nappy hair...',
+          description: 'Description de présentation',
+        },
+        universe: {
+          type: 'string',
+          enum: ['COCOMOUSSO', 'COCOTAILLE', 'MIXED'],
+          default: 'COCOMOUSSO',
+          description: 'Univers Coco',
+        },
+        commune: {
+          type: 'string',
+          example: 'Cocody',
+          description: 'Commune (ex: Cocody, Yopougon...)',
+        },
+        quartier: {
+          type: 'string',
+          example: 'Angré 8ème Tranche',
+          description: 'Quartier (ex: Angré, Biétry...)',
+        },
+        landmark: {
+          type: 'string',
+          example: 'En face de la pharmacie du 8ème, à 50m du carrefour Mandela',
+          description: 'Repère visuel ivoirien',
+        },
+        latitude: {
+          type: 'number',
+          example: 5.3599,
+          description: 'Latitude GPS',
+        },
+        longitude: {
+          type: 'number',
+          example: -4.0083,
+          description: 'Longitude GPS',
+        },
+        address: {
+          type: 'string',
+          example: 'Boulevard Latrille, Immeuble Horizon, 1er étage',
+          description: 'Adresse détaillée (optionnelle)',
+        },
+        logo: {
+          type: 'string',
+          format: 'binary',
+          description: 'Fichier image du logo à téléverser sur Cloudinary',
+        },
+        cover: {
+          type: 'string',
+          format: 'binary',
+          description: 'Fichier image de couverture à téléverser sur Cloudinary',
+        },
+      },
+      required: ['name', 'phone', 'commune', 'quartier', 'landmark', 'latitude', 'longitude'],
+    },
+  })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Créer un nouveau salon',
     description:
-      'Enregistre un salon avec ses informations, repères ivoiriens et coordonnées GPS. L\'utilisateur connecté devient automatiquement le propriétaire (SALON_OWNER).',
+      'Enregistre un salon avec ses informations, repères ivoiriens et coordonnées GPS. Formulaire multipart/form-data avec sélecteurs de fichiers d\'images (logo, cover). L\'utilisateur connecté devient automatiquement le propriétaire (SALON_OWNER).',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
@@ -79,8 +185,14 @@ export class SalonsController {
   public async create(
     @Body() dto: CreateSalonDto,
     @CurrentUser() user: TokenPayload,
+    @UploadedFiles()
+    files?: {
+      logo?: Express.Multer.File[];
+      cover?: Express.Multer.File[];
+      coverImage?: Express.Multer.File[];
+    },
   ): Promise<SalonResponseDto> {
-    return this.createSalonUseCase.execute(dto, user.sub);
+    return this.createSalonUseCase.execute(dto, user.sub, files);
   }
 
   @Public()
@@ -162,10 +274,90 @@ export class SalonsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
+  @UseInterceptors(
+    FileFieldsInterceptor([
+      { name: 'logo', maxCount: 1 },
+      { name: 'cover', maxCount: 1 },
+      { name: 'coverImage', maxCount: 1 },
+    ]),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Formulaire de modification d\'un salon avec images (Cloudinary)',
+    schema: {
+      type: 'object',
+      properties: {
+        name: {
+          type: 'string',
+          example: 'Salon Ébène Prestige & Spa',
+          description: 'Nouveau nom commercial',
+        },
+        phone: {
+          type: 'string',
+          example: '+2250701020304',
+          description: 'Nouveau numéro de téléphone',
+        },
+        whatsappPhone: {
+          type: 'string',
+          example: '+2250701020304',
+          description: 'Nouveau numéro WhatsApp',
+        },
+        email: {
+          type: 'string',
+          example: 'contact@ebene-prestige.ci',
+          description: 'Nouvelle adresse email',
+        },
+        description: {
+          type: 'string',
+          example: 'Description actualisée du salon...',
+        },
+        universe: {
+          type: 'string',
+          enum: ['COCOMOUSSO', 'COCOTAILLE', 'MIXED'],
+          description: 'Nouvel univers',
+        },
+        commune: {
+          type: 'string',
+          example: 'Cocody',
+        },
+        quartier: {
+          type: 'string',
+          example: 'Angré 8ème Tranche',
+        },
+        landmark: {
+          type: 'string',
+          example: 'En face de la pharmacie du 8ème, à 50m du carrefour Mandela',
+        },
+        latitude: {
+          type: 'number',
+          example: 5.3599,
+        },
+        longitude: {
+          type: 'number',
+          example: -4.0083,
+        },
+        address: {
+          type: 'string',
+          example: 'Boulevard Latrille, Immeuble Horizon',
+        },
+        logo: {
+          type: 'string',
+          format: 'binary',
+          description: 'Nouveau fichier image du logo (Cloudinary)',
+        },
+        cover: {
+          type: 'string',
+          format: 'binary',
+          description: 'Nouveau fichier image de couverture (Cloudinary)',
+        },
+      },
+    },
+  })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Mettre à jour les informations du salon',
-    description: 'Modifie le nom, repères géographiques, contacts, bio et médias de présentation.',
+    description:
+      'Modifie le nom, repères géographiques, contacts, bio et médias de présentation. Formulaire multipart/form-data avec sélecteurs de fichiers d\'images (logo, cover).',
   })
   @ApiParam({ name: 'id', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
   @ApiResponse({
@@ -176,8 +368,86 @@ export class SalonsController {
   public async update(
     @Param('id') id: string,
     @Body() dto: UpdateSalonDto,
+    @UploadedFiles()
+    files?: {
+      logo?: Express.Multer.File[];
+      cover?: Express.Multer.File[];
+      coverImage?: Express.Multer.File[];
+    },
   ): Promise<SalonResponseDto> {
-    return this.updateSalonUseCase.execute(id, dto);
+    return this.updateSalonUseCase.execute(id, dto, files);
+  }
+
+  @Post(':id/logo')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Téléverser le logo du salon vers Cloudinary',
+    description: 'Envoie l\'image du logo via multipart/form-data, la stocke sur Cloudinary et met à jour le profil du salon.',
+  })
+  @ApiParam({ name: 'id', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Fichier image du logo',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Logo téléversé et salon mis à jour.',
+    type: SalonResponseDto,
+  })
+  public async uploadLogo(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<SalonResponseDto> {
+    return this.uploadSalonLogoUseCase.execute(id, file);
+  }
+
+  @Post(':id/cover')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Téléverser l\'image de couverture du salon vers Cloudinary',
+    description: 'Envoie l\'image de couverture via multipart/form-data, la stocke sur Cloudinary et met à jour le profil du salon.',
+  })
+  @ApiParam({ name: 'id', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+          description: 'Fichier image de couverture',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Image de couverture téléversée et salon mis à jour.',
+    type: SalonResponseDto,
+  })
+  public async uploadCover(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+  ): Promise<SalonResponseDto> {
+    return this.uploadSalonCoverUseCase.execute(id, file);
   }
 
   @Patch(':id/status')

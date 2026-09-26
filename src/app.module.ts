@@ -12,6 +12,7 @@ import { CustomerModule } from './module/customer/customer.module.js';
 import { BookingModule } from './module/booking/booking.module.js';
 import { QueueModule } from './module/queue/queue.module.js';
 import { PaymentModule } from './module/payment/payment.module.js';
+import { CloudinaryModule } from './common/cloudinary/cloudinary.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -35,6 +36,8 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     BookingModule,
     QueueModule,
     PaymentModule,
+ CloudinaryModule
+    
   ],
   controllers: [AppController],
   providers: [AppService],
