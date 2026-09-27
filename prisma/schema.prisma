@@ -282,6 +282,8 @@ model Salon {
   landmark      String       // Repère essentiel: "En face de la pharmacie X, carrefour Y"
   latitude      Float
   longitude     Float
+  // Colonne spatiale PostGIS — gérée par trigger SQL, jamais écrite par Prisma directement
+  location      Unsupported("geometry(Point, 4326)")?
   address       String?
 
   coverUrl      String?

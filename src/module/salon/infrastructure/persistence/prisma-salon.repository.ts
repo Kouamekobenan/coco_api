@@ -19,7 +19,6 @@ import { SalonHourEntity } from '../../domain/entities/salon-hour.entity.js';
 import { SalonHourExceptionEntity } from '../../domain/entities/salon-hour-exception.entity.js';
 import { SalonMediaEntity } from '../../domain/entities/salon-media.entity.js';
 import { SalonPromotionEntity } from '../../domain/entities/salon-promotion.entity.js';
-import { SalonCoordinates } from '../../domain/value-objects/salon-coordinates.vo.js';
 import { SalonMapper } from './salon.mapper.js';
 
 @Injectable()
@@ -188,56 +187,73 @@ export class PrismaSalonRepository implements ISalonRepository {
     radiusKm: number,
     options?: SalonNearbyFilterOptions,
   ): Promise<NearbySalonResult[]> {
-    const userCoords = new SalonCoordinates(lat, lng);
+    const radiusMeters = radiusKm * 1000;
+    const limit = options?.limit ?? 20;
 
-    // Approximation de bounding box pour optimiser la requête SQL
-    // 1 deg lat ~ 111 km, 1 deg lng ~ 111 * cos(lat) km
-    const latDelta = radiusKm / 111;
-    const lngDelta = radiusKm / (111 * Math.cos(lat * (Math.PI / 180)));
+    // Construire les filtres optionnels universe / status en SQL paramétré
+    const universeClause =
+      options?.universe != null
+        ? Prisma.sql`AND s.universe = ${options.universe}::"AppUniverse"`
+        : Prisma.empty;
 
-    const where: Prisma.SalonWhereInput = {
-      latitude: {
-        gte: lat - latDelta,
-        lte: lat + latDelta,
-      },
-      longitude: {
-        gte: lng - lngDelta,
-        lte: lng + lngDelta,
-      },
-    };
+    const statusClause =
+      options?.status != null
+        ? Prisma.sql`AND s.status = ${options.status}::"SalonStatus"`
+        : Prisma.empty;
 
-    if (options?.universe) {
-      where.universe = options.universe as PrismaAppUniverse;
-    }
+    // ---------------------------------------------------------------
+    // Requête PostGIS :
+    //   ST_DWithin  → filtre rapide via index GiST (rayon en mètres)
+    //   ST_Distance → distance exacte sur sphéroïde WGS84
+    //   Note: ST_MakePoint(lng, lat) — PostGIS attend (X=lng, Y=lat)
+    // ---------------------------------------------------------------
+    const rows = await this.prisma.$queryRaw<Array<{ id: string; distance_km: number }>>`
+      SELECT
+        s.id,
+        ROUND(
+          (ST_Distance(
+            s.location::geography,
+            ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+          ) / 1000.0)::numeric,
+          2
+        )::float AS distance_km
+      FROM "Salon" s
+      WHERE
+        s.location IS NOT NULL
+        AND ST_DWithin(
+          s.location::geography,
+          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
+          ${radiusMeters}
+        )
+        ${universeClause}
+        ${statusClause}
+      ORDER BY distance_km ASC
+      LIMIT ${limit}
+    `;
 
-    if (options?.status) {
-      where.status = options.status as PrismaSalonStatus;
-    }
+    if (rows.length === 0) return [];
 
+    // Récupérer les entités complètes (avec relations) à partir des IDs triés
+    const ids = rows.map((r) => r.id);
     const rawSalons = await this.prisma.salon.findMany({
-      where,
-      take: 100, // Récupération d'un ensemble de candidats proches
+      where: { id: { in: ids } },
+      include: {
+        experienceConfig: true,
+        hours: { orderBy: { dayOfWeek: 'asc' } },
+        hourExceptions: { orderBy: { date: 'asc' } },
+        media: { orderBy: { sortOrder: 'asc' } },
+        promotions: { where: { isActive: true }, orderBy: { createdAt: 'desc' } },
+      },
     });
 
-    const resultsWithDistance: NearbySalonResult[] = [];
-
-    for (const raw of rawSalons) {
-      const salonEntity = SalonMapper.toDomain(raw);
-      const distance = userCoords.distanceTo(salonEntity.getCoordinates());
-
-      if (distance <= radiusKm) {
-        resultsWithDistance.push({
-          salon: salonEntity,
-          distanceKm: Math.round(distance * 100) / 100,
-        });
-      }
-    }
-
-    // Tri par distance croissante
-    resultsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-
-    const limit = options?.limit ?? 20;
-    return resultsWithDistance.slice(0, limit);
+    // Ré-ordonner les entités selon l'ordre de distance retourné par PostGIS
+    const distanceMap = new Map(rows.map((r) => [r.id, r.distance_km]));
+    return rawSalons
+      .map((raw) => ({
+        salon: SalonMapper.toDomain(raw),
+        distanceKm: distanceMap.get(raw.id) ?? 0,
+      }))
+      .sort((a, b) => a.distanceKm - b.distanceKm);
   }
 
   public async existsBySlug(slug: string, excludeId?: string): Promise<boolean> {

@@ -99,7 +99,7 @@ async function bootstrap() {
 
   console.log(`\n🌺 Coco API démarrée sur le port ${port}`);
   if (process.env.ENABLE_SWAGGER !== 'false') {
-    console.log(`📚 Swagger disponible sur /docs\n`);
+    console.log(`📚 Swagger disponible sur http://localhost:${port}/docs\n`);
   }
 }
 await bootstrap();
