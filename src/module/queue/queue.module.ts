@@ -18,6 +18,7 @@ import { GetLiveQueueDashboardUseCase } from './application/usecases/get-live-qu
 import { QueueLifecycleUseCase } from './application/usecases/queue-lifecycle.usecase.js';
 import { SearchQueueTicketsUseCase } from './application/usecases/search-queue-tickets.usecase.js';
 import { UpdateWaitEstimateUseCase } from './application/usecases/update-wait-estimate.usecase.js';
+import { GenerateTicketPdfUseCase } from './application/usecases/generate-ticket-pdf.usecase.js';
 
 // Presentation Controllers
 import { QueueController } from './presentation/controllers/queue.controller.js';
@@ -46,11 +47,13 @@ import { PublicQueueController } from './presentation/controllers/public-queue.c
     QueueLifecycleUseCase,
     SearchQueueTicketsUseCase,
     UpdateWaitEstimateUseCase,
+    GenerateTicketPdfUseCase,
   ],
   exports: [
     QUEUE_REPOSITORY,
     CreateTicketUseCase,
     GetLiveQueueDashboardUseCase,
+    GenerateTicketPdfUseCase,
   ],
 })
 export class QueueModule {}

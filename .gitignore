@@ -49,6 +49,11 @@ lerna-debug.log*
 .temp
 .tmp
 
+# Secrets & Firebase credentials
+src/common/firebase/credentials.js
+*.pem
+*.key
+
 # Runtime data
 pids
 *.pid

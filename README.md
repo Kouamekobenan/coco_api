@@ -1263,9 +1263,10 @@ Lorsqu'un coiffeur clique sur **"Appeler le suivant"** (`POST /salons/:salonId/q
 1. **Priorité RDV** : Tous les tickets de type `APPOINTMENT` sont positionnés en tête de file.
 2. **Ordre d'Arrivée (FIFO)** : À type égal, les tickets sont classés du plus ancien au plus récent (`createdAt` ascendant).
 
-#### 2. Numérotation Séparée & QR Code Token
+#### 2. Numérotation Séparée, QR Code Token & Impression PDF Thermique
 - Les numéros de tickets sont préfixés : `W-` pour Walk-in, `A-` pour Appointment, suivis d'un numéro séquentiel sur 3 chiffres (ex: `W-001`, `A-001`).
 - À chaque ticket est associé un `qrCodeToken` cryptographiquement sécurisé. Ce token permet de construire une URL publique de suivi (`/public/queue/track/:qrCodeToken`).
+- **Génération & Impression Ticket PDF Thermique** : Un flux binaire PDF vectoriel (`80mm x 150mm` / 226 x 425 pt format ticket de caisse thermique) est généré à la volée avec l'en-tête de marque « COCO BEAUTÉ », le nom et l'adresse/téléphone du salon, le numéro de passage grand format (32pt), le type de passage, le temps d'attente estimé, le QR code de suivi live et l'horodatage.
 
 #### 3. Délai de Grâce & Gestion des Incompatibilités
 - Lors de l'appel d'un ticket (`CALLED`), le système applique un paramètre `graceMinutes` (par défaut 10 minutes) qui fixe `callDeadlineAt`.
@@ -1297,6 +1298,7 @@ Tous les endpoints nécessitent une authentification Bearer JWT (`JwtAuthGuard`)
 | `POST` | `/salons/:salonId/queue/:ticketId/leave` | Marquer que le client a quitté la file (`LEFT`). |
 | `POST` | `/salons/:salonId/queue/:ticketId/no-show` | Marquer le client appelé comme absent (`NO_SHOW`). |
 | `PATCH`| `/salons/:salonId/queue/:ticketId/estimate`| Ajuster manuellement l'estimation d'attente. |
+| `GET` | `/salons/:salonId/queue/:ticketId/pdf` | Générer et télécharger le ticket au format PDF (pour imprimante thermique 80mm). |
 | `GET` | `/salons/:salonId/queue/:ticketId` | Consulter les détails d'un ticket. |
 
 ---
@@ -1308,6 +1310,7 @@ Aucune authentification requise.
 | Méthode | Endpoint | Description |
 | :--- | :--- | :--- |
 | `GET` | `/public/queue/track/:qrCodeToken` | Obtenir le statut et la position en direct d'un ticket. |
+| `GET` | `/public/queue/tickets/:ticketId/pdf` | Télécharger / imprimer le ticket au format PDF (accès public sans auth). |
 
 ---
 
@@ -1448,27 +1451,57 @@ Aucune authentification requise.
 
 ---
 
+#### Téléchargement & Impression du Ticket PDF (`/salons/:salonId/queue/:ticketId/pdf` ou `/public/queue/tickets/:ticketId/pdf`)
+
+`GET /api/v1/salons/6a20c26a-ea33-48fe-8fe9-22f6a7e7a6b7/queue/q-ticket-7711/pdf` (Protégé JWT)  
+ou  
+`GET /api/v1/public/queue/tickets/q-ticket-7711/pdf` (Public)
+
+**En-têtes de Réponse HTTP :**
+```http
+HTTP/1.1 200 OK
+Content-Type: application/pdf
+Content-Disposition: inline; filename="ticket.pdf"
+```
+
+**Caractéristiques & Rendu du Document PDF :**
+- **Format thermique standardisé :** Largeur 80mm (226 pt x 425 pt), marges 12pt, optimisé pour imprimantes tickets thermiques (Epson TM-T, Star Micronics, etc.) et affichage mobile.
+- **En-tête Marque & Salon :** Bannière `COCO BEAUTÉ` (Rose Ébène `#E11D48`), nom du salon en gras, adresse (commune, quartier) et numéro de téléphone du salon.
+- **Ligne de séparation :** Bordure de découpe thermique discrète (`#CBD5E1`).
+- **Numéro de passage grand format :** `W-004` ou `A-002` centré, police 32pt gras (`#0F172A`).
+- **Informations récapitulatives :** Nom du client, type de flux (`Sans RDV (Walk-in)` / `Rendez-vous`), estimation dynamique de l'attente (`Attente estimée : 20 - 35 min`).
+- **QR Code vectoriel 90x90 pt :** Généré dynamiquement avec `qrcode`, encodant le lien de suivi client `https://coco.ci/track/:qrCodeToken`.
+- **Pied de page :** Mention `Scannez pour suivre votre passage en direct` et date/heure UTC formattée en français (`fr-FR`).
+
+---
+
 ### Guides d'Intégration Frontend 1
 
-#### Flux 1 : Tablette Salon / Vue Manager (Gestion de la file)
-1. **Accueil Client Sans RDV** : Le gérant clique sur "+ Client Walk-in", choisit les prestations et valide. Un ticket `W-XXX` est imprimé/affiché.
-2. **Arrivée Client avec RDV** : Le gérant saisit le nom/téléphone du client, retrouve la réservation et clique sur "Check-in". Le ticket `A-XXX` est généré.
-3. **Appel au Fauteuil** : Un bouton principal "Appeler le Suivant" (`POST /call-next`) interroge l'API et affiche en gros le ticket appelé à l'écran.
-4. **Prise en charge** : Dès que le client s'assied, le coiffeur clique sur "Démarrer Prestation" (`POST /:id/start`). Le statut passe en `IN_SERVICE`.
-5. **Clôture** : En fin de coiffure, un clic sur "Terminer" (`POST /:id/complete`) clôture le ticket et met à jour le CRM.
+#### Flux 1 : Tablette Salon / Vue Manager (Gestion de la file & Impression)
+1. **Accueil Client Sans RDV** : Le gérant clique sur "+ Client Walk-in", choisit le client/prestations et valide.
+2. **Impression Immédiate du Ticket** : À la confirmation, le front-end peut ouvrir ou imprimer directement le ticket via :
+   ```javascript
+   // Exemple d'ouverture immédiate pour imprimante de caisse thermique :
+   const printUrl = `/api/v1/salons/${salonId}/queue/${ticket.id}/pdf`;
+   window.open(printUrl, '_blank');
+   ```
+3. **Arrivée Client avec RDV** : Le gérant saisit le nom/téléphone du client, retrouve la réservation et clique sur "Check-in". Le ticket `A-XXX` est généré et peut également être imprimé.
+4. **Appel au Fauteuil** : Un bouton principal "Appeler le Suivant" (`POST /call-next`) interroge l'API et affiche en gros le ticket appelé à l'écran.
+5. **Prise en charge** : Dès que le client s'assied, le coiffeur clique sur "Démarrer Prestation" (`POST /:id/start`). Le statut passe en `IN_SERVICE`.
+6. **Clôture** : En fin de coiffure, un clic sur "Terminer" (`POST /:id/complete`) clôture le ticket et met à jour le CRM.
 
 #### Flux 2 : Écran d'Affichage Salle d'Attente (TV Live Dashboard)
 - L'application TV ou la tablette fixée au mur effectue un polling à intervalle régulier (ex: toutes les 5 à 10 secondes) sur `GET /salons/:salonId/queue/live`.
 - **Affichage dynamique** :
   - **Zone Appel En Cours** (Clignotant / Alerte sonore) : Affiche `currentlyCalled` avec le numéro de ticket (ex: `A-001`) et le prénom du client.
   - **Zone En Fauteuil** : Liste les tickets actuellement `inService`.
-  - **Zone Prochants Clients** : Liste les numéros en attente dans l'ordre de la file avec leur position.
+  - **Zone Prochains Clients** : Liste les numéros en attente dans l'ordre de la file avec leur position.
 
-#### Flux 3 : Application Client / Web (Suivi par QR Code ou SMS)
-- Lorsqu'un ticket est créé, un QR Code contenant l'URL `https://app.cocotaille.ci/queue/track/qr_tok_xxx` est généré.
-- Le client scanne le QR Code avec son smartphone ou reçoit un SMS avec le lien.
+#### Flux 3 : Application Client / Web (Suivi par QR Code, SMS & Téléchargement PDF)
+- Le client scanne le QR Code présent sur son ticket physique ou clique sur le lien reçu par SMS (`https://coco.ci/track/:token`).
 - La page web client s'actualise en temps réel via `GET /public/queue/track/:token`.
-- **Interface Client** :
+- **Téléchargement Reçu Digital :** Le client a un bouton "Télécharger mon ticket PDF" appelant `GET /api/v1/public/queue/tickets/:ticketId/pdf` sans nécessiter de compte ni d'authentification.
+- **Interface Client en direct :**
   - Affiche en gros le numéro de ticket (ex: `W-004`).
   - Indique clairement : **"Il y a 2 personnes devant vous"** et **"Temps d'attente estimé : 20 - 35 min"**.
   - Si le statut passe à `CALLED`, l'écran passe en vert clignotant avec un message : **"C'est votre tour ! Veuillez vous présenter à l'accueil."**.

@@ -2,14 +2,17 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -35,6 +38,8 @@ import { QueueLifecycleUseCase } from '../../application/usecases/queue-lifecycl
 import { SearchQueueTicketsUseCase } from '../../application/usecases/search-queue-tickets.usecase.js';
 import { UpdateWaitEstimateUseCase } from '../../application/usecases/update-wait-estimate.usecase.js';
 
+import { GenerateTicketPdfUseCase } from '../../application/usecases/generate-ticket-pdf.usecase.js';
+
 @ApiTags('Queue — File d\'Attente Hybride & Live Tracking')
 @Controller({ path: 'salons/:salonId/queue', version: '1' })
 export class QueueController {
@@ -45,6 +50,7 @@ export class QueueController {
     private readonly lifecycleUseCase: QueueLifecycleUseCase,
     private readonly searchTicketsUseCase: SearchQueueTicketsUseCase,
     private readonly updateEstimateUseCase: UpdateWaitEstimateUseCase,
+    private readonly generateTicketPdfUseCase: GenerateTicketPdfUseCase,
   ) {}
 
   @Post('walk-in')
@@ -209,6 +215,21 @@ export class QueueController {
   ): Promise<QueueTicketResponseDto> {
     const ticket = await this.updateEstimateUseCase.execute(salonId, ticketId, dto);
     return QueueDtoMapper.toResponseDto(ticket);
+  }
+
+  @Get(':ticketId/pdf')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Header('Content-Type', 'application/pdf')
+  @Header('Content-Disposition', 'inline; filename="ticket.pdf"')
+  @ApiOperation({ summary: 'Générer et télécharger le ticket au format PDF (pour impression)' })
+  @ApiResponse({ status: 200, description: 'Fichier PDF binaire.' })
+  public async downloadTicketPdf(
+    @Param('ticketId') ticketId: string,
+    @Res() res: Response,
+  ): Promise<void> {
+    const buffer = await this.generateTicketPdfUseCase.execute(ticketId);
+    res.end(buffer);
   }
 
   @Get(':ticketId')
