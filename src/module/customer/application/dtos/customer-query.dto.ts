@@ -1,8 +1,8 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { PaginationQueryDto } from '../../../../common/dtos/pagination-query.dto.js';
 
-export class CustomerQueryDto {
+export class CustomerQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
     enum: ['NEW', 'REGULAR', 'INACTIVE', 'VIP'],
     description: 'Filtrer par segment client',
@@ -18,19 +18,4 @@ export class CustomerQueryDto {
   @IsString()
   @IsOptional()
   search?: string;
-
-  @ApiPropertyOptional({ example: 1, default: 1 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  page?: number = 1;
-
-  @ApiPropertyOptional({ example: 20, default: 20 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  @IsOptional()
-  limit?: number = 20;
 }

@@ -14,6 +14,7 @@ import {
   SalonCustomerNotFoundException,
 } from '../../domain/exceptions/customer-domain.exception.js';
 import { CustomerDtoMapper } from '../dtos/customer-dto.mapper.js';
+import { PaginatedResponseDto } from '../../../../common/dtos/paginated-response.dto.js';
 
 @Injectable()
 export class CreateCustomerUseCase {
@@ -112,15 +113,8 @@ export class GetSalonCustomersUseCase {
       limit,
     });
 
-    const totalPages = Math.ceil(total / limit) || 1;
-
-    return {
-      data: customers.map((c) => CustomerDtoMapper.toCustomerResponse(c)),
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+    const data = customers.map((c) => CustomerDtoMapper.toCustomerResponse(c));
+    return PaginatedResponseDto.create(data, total, page, limit);
   }
 }
 

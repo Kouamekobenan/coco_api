@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { PaginatedResponseDto } from '../../../../common/dtos/paginated-response.dto.js';
 
 export class CustomerResponseDto {
   @ApiProperty({ example: 'customer-uuid' })
@@ -38,19 +39,7 @@ export class CustomerResponseDto {
   updatedAt: Date;
 }
 
-export class PaginatedCustomersResponseDto {
+export class PaginatedCustomersResponseDto extends PaginatedResponseDto<CustomerResponseDto> {
   @ApiProperty({ type: [CustomerResponseDto] })
-  data: CustomerResponseDto[];
-
-  @ApiProperty({ example: 154 })
-  total: number;
-
-  @ApiProperty({ example: 1 })
-  page: number;
-
-  @ApiProperty({ example: 20 })
-  limit: number;
-
-  @ApiProperty({ example: 8 })
-  totalPages: number;
+  declare data: CustomerResponseDto[];
 }

@@ -5,6 +5,7 @@ import { FindUsersQueryDto } from '../dtos/find-users-query.dto.js';
 import { PaginatedUsersResponseDto } from '../dtos/paginated-users-response.dto.js';
 import { UserResponseDto } from '../dtos/user-response.dto.js';
 import { UserEntity } from '../../domain/entities/user.entity.js';
+import { PaginatedResponseDto } from '../../../../common/dtos/paginated-response.dto.js';
 
 @Injectable()
 export class FindAllUsersUseCase {
@@ -24,15 +25,8 @@ export class FindAllUsersUseCase {
       universe: query.universe,
     });
 
-    const totalPages = Math.ceil(total / limit) || 1;
-
-    return {
-      data: users.map((u) => this.mapToResponse(u)),
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+    const data = users.map((u) => this.mapToResponse(u));
+    return PaginatedResponseDto.create(data, total, page, limit);
   }
 
   private mapToResponse(user: UserEntity): UserResponseDto {

@@ -1,8 +1,9 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
+import { PaginationQueryDto } from '../../../../common/dtos/pagination-query.dto.js';
 
-export class StyleQueryDto {
+export class StyleQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: ['COCOMOUSSO', 'COCOTAILLE', 'MIXED'] })
   @IsEnum(['COCOMOUSSO', 'COCOTAILLE', 'MIXED'])
   @IsOptional()
@@ -18,21 +19,6 @@ export class StyleQueryDto {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
-
-  @ApiPropertyOptional({ example: 1, default: 1 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @IsOptional()
-  page?: number = 1;
-
-  @ApiPropertyOptional({ example: 20, default: 20 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  @IsOptional()
-  limit?: number = 20;
 }
 
 export { StyleResponseDto } from './style-response.dto.js';

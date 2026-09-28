@@ -4,6 +4,7 @@ import { SALON_REPOSITORY } from '../../domain/repositories/salon.repository.int
 import { SalonQueryDto } from '../dtos/salon-query.dto.js';
 import { PaginatedSalonsResponseDto } from '../dtos/paginated-salons-response.dto.js';
 import { SalonDtoMapper } from '../dtos/salon-dto.mapper.js';
+import { PaginatedResponseDto } from '../../../../common/dtos/paginated-response.dto.js';
 
 @Injectable()
 export class SearchSalonsUseCase {
@@ -27,14 +28,7 @@ export class SearchSalonsUseCase {
       isVerified: query.isVerified,
     });
 
-    const totalPages = Math.ceil(total / limit) || 1;
-
-    return {
-      data: salons.map((salon) => SalonDtoMapper.toResponse(salon)),
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+    const data = salons.map((salon) => SalonDtoMapper.toResponse(salon));
+    return PaginatedResponseDto.create(data, total, page, limit);
   }
 }

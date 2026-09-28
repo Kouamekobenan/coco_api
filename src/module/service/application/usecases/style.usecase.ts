@@ -57,6 +57,9 @@ export class CreateStyleUseCase {
   }
 }
 
+import { PaginatedResponseDto } from '../../../../common/dtos/paginated-response.dto.js';
+import { PaginatedStylesResponseDto } from '../dtos/paginated-styles-response.dto.js';
+
 @Injectable()
 export class GetStylesUseCase {
   constructor(
@@ -64,19 +67,20 @@ export class GetStylesUseCase {
     private readonly styleRepository: IStyleRepository,
   ) {}
 
-  public async execute(query: StyleQueryDto): Promise<{ data: StyleResponseDto[]; total: number }> {
+  public async execute(query: StyleQueryDto): Promise<PaginatedStylesResponseDto> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+
     const { styles, total } = await this.styleRepository.findAll({
       universe: query.universe,
       isActive: query.isActive,
       search: query.search,
-      page: query.page,
-      limit: query.limit,
+      page,
+      limit,
     });
 
-    return {
-      data: styles.map((s) => ServiceDtoMapper.toStyleResponse(s)),
-      total,
-    };
+    const data = styles.map((s) => ServiceDtoMapper.toStyleResponse(s));
+    return PaginatedResponseDto.create(data, total, page, limit);
   }
 }
 

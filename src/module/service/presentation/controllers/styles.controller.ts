@@ -25,6 +25,7 @@ import {
 } from '@nestjs/swagger';
 import { CreateStyleDto, UpdateStyleDto } from '../../application/dtos/create-style.dto.js';
 import { StyleQueryDto, StyleResponseDto } from '../../application/dtos/style-query.dto.js';
+import { PaginatedStylesResponseDto } from '../../application/dtos/paginated-styles-response.dto.js';
 import {
   CreateStyleUseCase,
   DeleteStyleUseCase,
@@ -123,8 +124,9 @@ export class StylesController {
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Liste paginée des styles.',
+    type: PaginatedStylesResponseDto,
   })
-  public async findAll(@Query() query: StyleQueryDto) {
+  public async findAll(@Query() query: StyleQueryDto): Promise<PaginatedStylesResponseDto> {
     return this.getStylesUseCase.execute(query);
   }
 
