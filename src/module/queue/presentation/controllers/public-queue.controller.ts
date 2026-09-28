@@ -39,6 +39,9 @@ export class PublicQueueController {
     @Res() res: Response,
   ): Promise<void> {
     const buffer = await this.generateTicketPdfUseCase.execute(ticketId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="ticket.pdf"');
+    res.setHeader('Content-Length', buffer.length);
     res.end(buffer);
   }
 }

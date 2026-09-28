@@ -41,6 +41,7 @@ import { UpdateWaitEstimateUseCase } from '../../application/usecases/update-wai
 import { GenerateTicketPdfUseCase } from '../../application/usecases/generate-ticket-pdf.usecase.js';
 
 @ApiTags('Queue — File d\'Attente Hybride & Live Tracking')
+@ApiBearerAuth('access-token')
 @Controller({ path: 'salons/:salonId/queue', version: '1' })
 export class QueueController {
   constructor(
@@ -55,7 +56,7 @@ export class QueueController {
 
   @Post('walk-in')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Créer un ticket sans rendez-vous (Walk-in)',
@@ -73,7 +74,7 @@ export class QueueController {
 
   @Post('appointment')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Enregistrer l\'arrivée d\'un client avec rendez-vous (Check-in RDV)',
@@ -91,7 +92,7 @@ export class QueueController {
 
   @Get('live')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Tableau de bord live de la file d\'attente',
     description:
@@ -106,7 +107,7 @@ export class QueueController {
 
   @Get()
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Lister et rechercher dans l\'historique des tickets' })
   @ApiResponse({ status: 200, type: QueueTicketListResponseDto })
   public async search(
@@ -118,7 +119,7 @@ export class QueueController {
 
   @Post('call-next')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Appeler le prochain client (Algorithme d\'ordonnancement hybride)',
     description:
@@ -135,7 +136,7 @@ export class QueueController {
 
   @Post(':ticketId/call')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Appeler un ticket spécifique' })
   @ApiResponse({ status: 200, type: QueueTicketResponseDto })
   public async callTicket(
@@ -149,7 +150,7 @@ export class QueueController {
 
   @Post(':ticketId/start')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Démarrer la prestation (Passage au fauteuil / IN_SERVICE)' })
   @ApiResponse({ status: 200, type: QueueTicketResponseDto })
   public async startService(
@@ -162,7 +163,7 @@ export class QueueController {
 
   @Post(':ticketId/complete')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({
     summary: 'Terminer la prestation du ticket (DONE)',
     description:
@@ -179,7 +180,7 @@ export class QueueController {
 
   @Post(':ticketId/leave')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Marquer que le client a quitté la file d\'attente (LEFT)' })
   @ApiResponse({ status: 200, type: QueueTicketResponseDto })
   public async leave(
@@ -192,7 +193,7 @@ export class QueueController {
 
   @Post(':ticketId/no-show')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Marquer un client appelé comme non présenté (NO_SHOW)' })
   @ApiResponse({ status: 200, type: QueueTicketResponseDto })
   public async noShow(
@@ -205,7 +206,7 @@ export class QueueController {
 
   @Patch(':ticketId/estimate')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Ajuster manuellement l\'estimation d\'attente du ticket' })
   @ApiResponse({ status: 200, type: QueueTicketResponseDto })
   public async updateEstimate(
@@ -219,22 +220,26 @@ export class QueueController {
 
   @Get(':ticketId/pdf')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @Header('Content-Type', 'application/pdf')
   @Header('Content-Disposition', 'inline; filename="ticket.pdf"')
   @ApiOperation({ summary: 'Générer et télécharger le ticket au format PDF (pour impression)' })
   @ApiResponse({ status: 200, description: 'Fichier PDF binaire.' })
   public async downloadTicketPdf(
+    @Param('salonId') salonId: string,
     @Param('ticketId') ticketId: string,
     @Res() res: Response,
   ): Promise<void> {
     const buffer = await this.generateTicketPdfUseCase.execute(ticketId);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="ticket.pdf"');
+    res.setHeader('Content-Length', buffer.length);
     res.end(buffer);
   }
 
   @Get(':ticketId')
   @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
+  @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Consulter le détail d\'un ticket' })
   @ApiResponse({ status: 200, type: QueueTicketResponseDto })
   public async getById(

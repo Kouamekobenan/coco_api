@@ -22,7 +22,7 @@ import { LoyaltyUseCase } from '../../application/usecases/loyalty.usecase.js';
 @ApiTags('Loyalty — Points de Fidélité & Réductions')
 @Controller({ path: 'salons/:salonId/loyalty', version: '1' })
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@ApiBearerAuth('access-token')
 export class LoyaltyController {
   constructor(private readonly loyaltyUseCase: LoyaltyUseCase) {}
 
