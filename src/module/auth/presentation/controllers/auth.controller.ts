@@ -56,7 +56,7 @@ export class AuthController {
   })
   @ApiResponse({
     status: HttpStatus.CONFLICT,
-    description: 'Un compte avec ce numéro de téléphone existe déjà.',
+    description: 'Un compte avec ce numéro de téléphone ou cette adresse email existe déjà.',
   })
   public async register(@Body() dto: RegisterDto): Promise<AuthResponseDto> {
     return this.registerUserUseCase.execute(dto);

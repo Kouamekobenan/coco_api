@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import { AppModule, ObserveInstrument } from './app.module.js';
 import { DomainExceptionFilter } from './module/auth/infrastructure/filters/domain-exception.filter.js';
+import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -38,8 +39,11 @@ async function bootstrap() {
     }),
   );
 
-  // ── Filtres d'exceptions du domaine (DDD) ──────────────────────────────────
-  app.useGlobalFilters(new DomainExceptionFilter());
+  // ── Filtres d'exceptions (DDD & Prisma) ───────────────────────────────────
+  app.useGlobalFilters(
+    new DomainExceptionFilter(),
+    new PrismaExceptionFilter(),
+  );
 
   // ── Préfixe global ────────────────────────────────────────────────────────
   app.setGlobalPrefix('api');

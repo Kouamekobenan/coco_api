@@ -4,6 +4,7 @@ import { USER_REPOSITORY } from '../../domain/repositories/user.repository.inter
 import { UpdateProfileDto } from '../dtos/update-profile.dto.js';
 import { UserResponseDto } from '../dtos/user-response.dto.js';
 import { UserEntity } from '../../domain/entities/user.entity.js';
+import { UserEmailAlreadyExistsException } from '../../domain/exceptions/domain.exception.js';
 
 @Injectable()
 export class UpdateProfileUseCase {
@@ -18,10 +19,19 @@ export class UpdateProfileUseCase {
       throw new NotFoundException(`Utilisateur introuvable.`);
     }
 
+    const normalizedEmail = dto.email ? dto.email.toLowerCase().trim() : dto.email;
+
+    if (normalizedEmail && normalizedEmail !== user.getEmail()?.toLowerCase()) {
+      const existingUser = await this.userRepository.findByEmail(normalizedEmail);
+      if (existingUser && existingUser.getId() !== userId) {
+        throw new UserEmailAlreadyExistsException(normalizedEmail);
+      }
+    }
+
     user.updateProfile({
       firstName: dto.firstName,
       lastName: dto.lastName,
-      email: dto.email,
+      email: normalizedEmail,
       avatarUrl: dto.avatarUrl,
       defaultUniverse: dto.defaultUniverse,
     });

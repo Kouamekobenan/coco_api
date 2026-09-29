@@ -11,6 +11,7 @@ import {
   InvalidPasswordException,
   InvalidPhoneNumberException,
   UserAlreadyExistsException,
+  UserEmailAlreadyExistsException,
   UserNotFoundException,
 } from '../../domain/exceptions/domain.exception.js';
 import { ServiceDomainException } from '../../../service/domain/exceptions/service-domain.exception.js';
@@ -19,6 +20,7 @@ import { CustomerDomainException } from '../../../customer/domain/exceptions/cus
 import { BookingDomainException } from '../../../booking/domain/exceptions/booking-domain.exception.js';
 import { QueueDomainException } from '../../../queue/domain/exceptions/queue-domain.exception.js';
 import { PaymentDomainException } from '../../../payment/domain/exceptions/payment-domain.exception.js';
+import { SubscriptionDomainException } from '../../../subscription/domain/exceptions/subscription-domain.exception.js';
 
 @Catch(
   DomainException,
@@ -28,6 +30,7 @@ import { PaymentDomainException } from '../../../payment/domain/exceptions/payme
   BookingDomainException,
   QueueDomainException,
   PaymentDomainException,
+  SubscriptionDomainException,
 )
 export class DomainExceptionFilter implements ExceptionFilter {
   public catch(exception: Error, host: ArgumentsHost): void {
@@ -40,6 +43,9 @@ export class DomainExceptionFilter implements ExceptionFilter {
       status = HttpStatus.UNAUTHORIZED;
     } else if (
       exception instanceof UserAlreadyExistsException ||
+      exception instanceof UserEmailAlreadyExistsException ||
+      exception.name === 'UserAlreadyExistsException' ||
+      exception.name === 'UserEmailAlreadyExistsException' ||
       exception.name === 'SalonSlugAlreadyExistsException' ||
       exception.name === 'StyleSlugAlreadyExistsException' ||
       exception.name === 'SalonCustomerAlreadyExistsException' ||
@@ -47,7 +53,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
       exception.name === 'BookingHoldExpiredException' ||
       exception.name === 'ActiveTicketAlreadyExistsException' ||
       exception.name === 'DuplicatePaymentException' ||
-      exception.name === 'PaymentAlreadySettledException'
+      exception.name === 'PaymentAlreadySettledException' ||
+      exception.name === 'AlreadySubscribedException'
     ) {
       status = HttpStatus.CONFLICT;
     } else if (
@@ -69,7 +76,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
       exception.name === 'BookingNotFoundException' ||
       exception.name === 'BookingPhaseNotFoundException' ||
       exception.name === 'QueueTicketNotFoundException' ||
-      exception.name === 'PaymentNotFoundException'
+      exception.name === 'PaymentNotFoundException' ||
+      exception.name === 'SubscriptionNotFoundException'
     ) {
       status = HttpStatus.NOT_FOUND;
     } else if (exception.name === 'UnauthorizedSalonAccessException') {

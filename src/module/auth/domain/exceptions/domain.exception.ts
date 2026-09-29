@@ -28,6 +28,13 @@ export class UserAlreadyExistsException extends DomainException {
   }
 }
 
+export class UserEmailAlreadyExistsException extends DomainException {
+  constructor(email: string) {
+    super(`Un compte avec l'adresse email "${email}" existe déjà.`);
+    this.name = 'UserEmailAlreadyExistsException';
+  }
+}
+
 export class UserNotFoundException extends DomainException {
   constructor(identifier: string) {
     super(`Utilisateur "${identifier}" introuvable.`);

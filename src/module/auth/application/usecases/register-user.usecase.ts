@@ -9,7 +9,10 @@ import { TOKEN_SERVICE } from '../ports/token-service.port.js';
 import { PhoneNumber } from '../../domain/value-objects/phone-number.vo.js';
 import { Password } from '../../domain/value-objects/password.vo.js';
 import { UserEntity } from '../../domain/entities/user.entity.js';
-import { UserAlreadyExistsException } from '../../domain/exceptions/domain.exception.js';
+import {
+  UserAlreadyExistsException,
+  UserEmailAlreadyExistsException,
+} from '../../domain/exceptions/domain.exception.js';
 import { RegisterDto } from '../dtos/register.dto.js';
 import { AuthResponseDto } from '../dtos/auth-response.dto.js';
 import { UserResponseDto } from '../dtos/user-response.dto.js';
@@ -29,10 +32,18 @@ export class RegisterUserUseCase {
     // 1. Validation et normalisation du téléphone au format +225
     const phone = PhoneNumber.create(dto.phone);
 
-    // 2. Vérification d'unicité
-    const exists = await this.userRepository.existsByPhone(phone);
-    if (exists) {
+    // 2. Vérification d'unicité (téléphone et email)
+    const phoneExists = await this.userRepository.existsByPhone(phone);
+    if (phoneExists) {
       throw new UserAlreadyExistsException(phone.getNationalFormat());
+    }
+
+    const normalizedEmail = dto.email ? dto.email.toLowerCase().trim() : null;
+    if (normalizedEmail) {
+      const emailExists = await this.userRepository.existsByEmail(normalizedEmail);
+      if (emailExists) {
+        throw new UserEmailAlreadyExistsException(normalizedEmail);
+      }
     }
 
     // 3. Validation et hachage sécurisé du mot de passe
@@ -45,9 +56,9 @@ export class RegisterUserUseCase {
       id: randomUUID(),
       phone,
       password,
-      email: dto.email,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
+      email: normalizedEmail,
+      firstName: dto.firstName?.trim() ?? null,
+      lastName: dto.lastName?.trim() ?? null,
       defaultUniverse: dto.defaultUniverse ?? 'COCOMOUSSO',
     });
 

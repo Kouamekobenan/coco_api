@@ -35,6 +35,14 @@ export class QueueWaitEstimate {
     return `${this._minMinutes} - ${this._maxMinutes} min`;
   }
 
+  public static create(
+    minMinutes: number,
+    maxMinutes: number,
+    projectedStart?: Date | null,
+  ): QueueWaitEstimate {
+    return new QueueWaitEstimate(minMinutes, maxMinutes, projectedStart);
+  }
+
   public static zero(): QueueWaitEstimate {
     return new QueueWaitEstimate(0, 0, new Date());
   }

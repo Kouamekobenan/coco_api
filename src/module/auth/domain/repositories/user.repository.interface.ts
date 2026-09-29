@@ -16,6 +16,7 @@ export interface IUserRepository {
   findById(id: string): Promise<UserEntity | null>;
   findByEmail(email: string): Promise<UserEntity | null>;
   existsByPhone(phone: PhoneNumber): Promise<boolean>;
+  existsByEmail(email: string): Promise<boolean>;
   update(user: UserEntity): Promise<void>;
   findAll(options: FindAllUsersOptions): Promise<{ users: UserEntity[]; total: number }>;
   delete(id: string): Promise<void>;
