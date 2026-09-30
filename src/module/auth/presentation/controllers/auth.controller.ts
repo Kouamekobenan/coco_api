@@ -5,8 +5,10 @@ import {
   HttpCode,
   HttpStatus,
   Post,
+  Req,
   UseGuards,
 } from '@nestjs/common';
+import type { Request } from 'express';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -17,11 +19,20 @@ import { RegisterUserUseCase } from '../../application/usecases/register-user.us
 import { LoginUserUseCase } from '../../application/usecases/login-user.usecase.js';
 import { GetProfileUseCase } from '../../application/usecases/get-profile.usecase.js';
 import { ResetPasswordUseCase } from '../../application/usecases/reset-password.usecase.js';
+import { ChangePasswordUseCase } from '../../application/usecases/change-password.usecase.js';
+import { LogoutUserUseCase } from '../../application/usecases/logout-user.usecase.js';
+import { LogoutAllSessionsUseCase } from '../../application/usecases/logout-all-sessions.usecase.js';
+import { RefreshTokenUseCase } from '../../application/usecases/refresh-token.usecase.js';
+import { GetActiveSessionsUseCase } from '../../application/usecases/get-active-sessions.usecase.js';
 import { RegisterDto } from '../../application/dtos/register.dto.js';
 import { LoginDto } from '../../application/dtos/login.dto.js';
 import { ResetPasswordDto } from '../../application/dtos/reset-password.dto.js';
+import { ChangePasswordDto } from '../../application/dtos/change-password.dto.js';
+import { RefreshTokenDto } from '../../application/dtos/refresh-token.dto.js';
+import { LogoutDto } from '../../application/dtos/logout.dto.js';
 import { AuthResponseDto } from '../../application/dtos/auth-response.dto.js';
 import { UserResponseDto } from '../../application/dtos/user-response.dto.js';
+import { SessionResponseDto } from '../../application/dtos/session-response.dto.js';
 import { Public } from '../../infrastructure/security/public.decorator.js';
 import { JwtAuthGuard } from '../../infrastructure/security/jwt-auth.guard.js';
 import { CurrentUser } from '../../infrastructure/security/current-user.decorator.js';
@@ -35,6 +46,11 @@ export class AuthController {
     private readonly loginUserUseCase: LoginUserUseCase,
     private readonly getProfileUseCase: GetProfileUseCase,
     private readonly resetPasswordUseCase: ResetPasswordUseCase,
+    private readonly changePasswordUseCase: ChangePasswordUseCase,
+    private readonly logoutUserUseCase: LogoutUserUseCase,
+    private readonly logoutAllSessionsUseCase: LogoutAllSessionsUseCase,
+    private readonly refreshTokenUseCase: RefreshTokenUseCase,
+    private readonly getActiveSessionsUseCase: GetActiveSessionsUseCase,
   ) {}
 
   @Public()
@@ -58,8 +74,13 @@ export class AuthController {
     status: HttpStatus.CONFLICT,
     description: 'Un compte avec ce numéro de téléphone ou cette adresse email existe déjà.',
   })
-  public async register(@Body() dto: RegisterDto): Promise<AuthResponseDto> {
-    return this.registerUserUseCase.execute(dto);
+  public async register(
+    @Body() dto: RegisterDto,
+    @Req() req: Request,
+  ): Promise<AuthResponseDto> {
+    const ipAddress = req.ip || (req.headers['x-forwarded-for'] as string) || null;
+    const userAgent = req.headers['user-agent'] || null;
+    return this.registerUserUseCase.execute(dto, { ipAddress, userAgent });
   }
 
   @Public()
@@ -68,7 +89,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Connexion par téléphone et mot de passe',
     description:
-      'Authentifie un utilisateur grâce à son numéro de téléphone (+225XXXXXXXXXX ou format local) et son mot de passe. Renvoie le token Bearer JWT.',
+      'Authentifie un utilisateur grâce à son numéro de téléphone (+225XXXXXXXXXX ou format local) et son mot de passe. Renvoie le token Bearer JWT et un refresh token.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
@@ -79,8 +100,123 @@ export class AuthController {
     status: HttpStatus.UNAUTHORIZED,
     description: 'Numéro de téléphone ou mot de passe incorrect.',
   })
-  public async login(@Body() dto: LoginDto): Promise<AuthResponseDto> {
-    return this.loginUserUseCase.execute(dto);
+  public async login(
+    @Body() dto: LoginDto,
+    @Req() req: Request,
+  ): Promise<AuthResponseDto> {
+    const ipAddress = req.ip || (req.headers['x-forwarded-for'] as string) || null;
+    const userAgent = req.headers['user-agent'] || null;
+    return this.loginUserUseCase.execute(dto, { ipAddress, userAgent });
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Renouveler son token d’accès (Refresh Token Rotation)',
+    description:
+      'Vérifie la validité du refresh token, applique la rotation sécurisée et réémet une nouvelle paire de tokens (accessToken + refreshToken).',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Tokens renouvelés avec succès.',
+    type: AuthResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Refresh token invalide, expiré ou révoqué.',
+  })
+  public async refresh(
+    @Body() dto: RefreshTokenDto,
+  ): Promise<AuthResponseDto> {
+    return this.refreshTokenUseCase.execute(dto);
+  }
+
+  @Post('logout')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Déconnexion de l’utilisateur',
+    description:
+      'Invalide la session courante en révoquant le refresh token associé. La session ne pourra plus être renouvelée.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Déconnexion réussie.',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Token manquant ou expiré.',
+  })
+  public async logout(
+    @CurrentUser() user: TokenPayload,
+    @Body() dto?: LogoutDto,
+  ): Promise<{ message: string }> {
+    return this.logoutUserUseCase.execute(user.sub, dto);
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Déconnecter toutes les sessions (Tous les appareils)',
+    description:
+      'Révoque l’ensemble des sessions actives de l’utilisateur sur tous ses téléphones, tablettes et navigateurs.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Toutes les sessions ont été déconnectées.',
+  })
+  public async logoutAll(
+    @CurrentUser() user: TokenPayload,
+  ): Promise<{ message: string; revokedCount: number }> {
+    return this.logoutAllSessionsUseCase.execute(user.sub);
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Lister les sessions actives de l’utilisateur',
+    description:
+      'Consulte la liste des appareils et navigateurs actuellement connectés à ce compte.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Liste des sessions actives.',
+    type: [SessionResponseDto],
+  })
+  public async getSessions(
+    @CurrentUser() user: TokenPayload,
+  ): Promise<SessionResponseDto[]> {
+    return this.getActiveSessionsUseCase.execute(user.sub);
+  }
+
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Changer son mot de passe (Utilisateur connecté)',
+    description:
+      'Modifie le mot de passe de l’utilisateur après vérification de son mot de passe actuel.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Mot de passe modifié avec succès.',
+  })
+  @ApiResponse({
+    status: HttpStatus.UNAUTHORIZED,
+    description: 'Ancien mot de passe incorrect.',
+  })
+  public async changePassword(
+    @CurrentUser() user: TokenPayload,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    return this.changePasswordUseCase.execute(user.sub, dto);
   }
 
   @Public()
@@ -99,7 +235,9 @@ export class AuthController {
     status: HttpStatus.NOT_FOUND,
     description: 'Aucun compte associé à ce numéro.',
   })
-  public async resetPassword(@Body() dto: ResetPasswordDto): Promise<{ message: string }> {
+  public async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ message: string }> {
     return this.resetPasswordUseCase.execute(dto);
   }
 

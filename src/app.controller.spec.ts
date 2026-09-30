@@ -15,8 +15,8 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "CocoTailleur API est en ligne !"', () => {
-      expect(appController.getHello()).toBe('CocoTailleur API est en ligne !');
+    it('should return "CocoTailler API est en ligne !"', () => {
+      expect(appController.getHello()).toBe('CocoTailler API est en ligne !');
     });
   });
 });

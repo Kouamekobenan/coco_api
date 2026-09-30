@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 // Domain Tokens
 import { USER_REPOSITORY } from './domain/repositories/user.repository.interface.js';
+import { SESSION_REPOSITORY } from './domain/repositories/session.repository.interface.js';
 import { PASSWORD_HASHER } from './application/ports/password-hasher.port.js';
 import { TOKEN_SERVICE } from './application/ports/token-service.port.js';
 
@@ -18,9 +19,14 @@ import { ChangePasswordUseCase } from './application/usecases/change-password.us
 import { FindAllUsersUseCase } from './application/usecases/find-all-users.usecase.js';
 import { ToggleUserStatusUseCase } from './application/usecases/toggle-user-status.usecase.js';
 import { DeleteUserUseCase } from './application/usecases/delete-user.usecase.js';
+import { LogoutUserUseCase } from './application/usecases/logout-user.usecase.js';
+import { LogoutAllSessionsUseCase } from './application/usecases/logout-all-sessions.usecase.js';
+import { RefreshTokenUseCase } from './application/usecases/refresh-token.usecase.js';
+import { GetActiveSessionsUseCase } from './application/usecases/get-active-sessions.usecase.js';
 
 // Infrastructure Adapters
 import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository.js';
+import { PrismaSessionRepository } from './infrastructure/persistence/prisma-session.repository.js';
 import { BcryptHasherService } from './infrastructure/security/bcrypt-hasher.service.js';
 import { JwtTokenService } from './infrastructure/security/jwt-token.service.js';
 import { JwtStrategy } from './infrastructure/security/jwt.strategy.js';
@@ -53,6 +59,10 @@ import { UsersController } from './presentation/controllers/users.controller.js'
       useClass: PrismaUserRepository,
     },
     {
+      provide: SESSION_REPOSITORY,
+      useClass: PrismaSessionRepository,
+    },
+    {
       provide: PASSWORD_HASHER,
       useClass: BcryptHasherService,
     },
@@ -71,6 +81,10 @@ import { UsersController } from './presentation/controllers/users.controller.js'
     FindAllUsersUseCase,
     ToggleUserStatusUseCase,
     DeleteUserUseCase,
+    LogoutUserUseCase,
+    LogoutAllSessionsUseCase,
+    RefreshTokenUseCase,
+    GetActiveSessionsUseCase,
 
     // Security
     JwtStrategy,
@@ -78,6 +92,7 @@ import { UsersController } from './presentation/controllers/users.controller.js'
   ],
   exports: [
     USER_REPOSITORY,
+    SESSION_REPOSITORY,
     TOKEN_SERVICE,
     JwtAuthGuard,
     JwtStrategy,

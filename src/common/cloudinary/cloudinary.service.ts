@@ -51,7 +51,7 @@ export class CloudinaryService implements FileUploader {
     type: 'image' | 'video' = 'image',
   ): Promise<void> {
     return new Promise((resolve, reject) => {
-      cloudinary.uploader.destroy(
+      void cloudinary.uploader.destroy(
         publicId,
         { resource_type: type },
         (error: any, result: any) => {
