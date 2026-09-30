@@ -35,7 +35,7 @@ import { GetSubscriptionStatusUseCase } from '../../application/usecases/get-sub
 import { GetSalonSubscribersUseCase } from '../../application/usecases/get-salon-subscribers.usecase.js';
 import { UpdateSubscriptionPreferencesUseCase } from '../../application/usecases/update-subscription-preferences.usecase.js';
 
-@ApiTags('Salons — Abonnements & Suivis')
+@ApiTags('Subscriptions')
 @Controller({ path: 'salons/:salonId', version: '1' })
 export class SalonSubscriptionsController {
   constructor(

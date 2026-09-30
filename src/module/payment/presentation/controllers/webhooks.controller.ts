@@ -4,7 +4,7 @@ import { PaymentProvider } from '@prisma/client';
 import { WebhookPayloadDto } from '../../application/dtos/webhook-payload.dto.js';
 import { ProcessPaymentWebhookUseCase } from '../../application/usecases/process-payment-webhook.usecase.js';
 
-@ApiTags('Webhooks — Callbacks Opérateurs Mobile Money')
+@ApiTags('Payments')
 @Controller({ path: 'webhooks/payments', version: '1' })
 export class WebhooksController {
   constructor(private readonly processWebhookUseCase: ProcessPaymentWebhookUseCase) {}

@@ -43,7 +43,7 @@ import {
 import { Public } from '../../../auth/infrastructure/security/public.decorator.js';
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 
-@ApiTags('Staff — Plannings, Pauses & Congés')
+@ApiTags('Staff')
 @Controller({ path: 'salons/:salonId/staff/:staffId/schedule', version: '1' })
 export class StaffScheduleController {
   constructor(

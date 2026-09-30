@@ -14,6 +14,7 @@ import { QueueModule } from './module/queue/queue.module.js';
 import { PaymentModule } from './module/payment/payment.module.js';
 import { CloudinaryModule } from './common/cloudinary/cloudinary.module.js';
 import { SubscriptionModule } from './module/subscription/subscription.module.js';
+import { AdminModule } from './module/admin/admin.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -39,6 +40,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     PaymentModule,
     CloudinaryModule,
     SubscriptionModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],

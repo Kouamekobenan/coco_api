@@ -29,7 +29,7 @@ import { GetPaymentByIdUseCase } from '../../application/usecases/get-payment-by
 import { SearchPaymentsUseCase } from '../../application/usecases/search-payments.usecase.js';
 import { RefundPaymentUseCase } from '../../application/usecases/refund-payment.usecase.js';
 
-@ApiTags('Payments — Paiements & Acomptes Mobile Money / Cash')
+@ApiTags('Payments')
 @Controller({ path: 'salons/:salonId/payments', version: '1' })
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')

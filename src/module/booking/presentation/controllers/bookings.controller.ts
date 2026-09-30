@@ -34,7 +34,7 @@ import { GetBookingByIdUseCase } from '../../application/usecases/get-booking-by
 import { SearchBookingsUseCase } from '../../application/usecases/search-bookings.usecase.js';
 import { BookingLifecycleUseCase } from '../../application/usecases/booking-lifecycle.usecase.js';
 
-@ApiTags('Bookings — Moteur de Réservation & Prestations')
+@ApiTags('Bookings')
 @Controller({ path: 'salons/:salonId/bookings', version: '1' })
 export class BookingsController {
   constructor(

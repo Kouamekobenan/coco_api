@@ -16,7 +16,7 @@ import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.gua
 import { SalonLedgerResponseDto } from '../../application/dtos/payment-response.dto.js';
 import { GetSalonLedgerUseCase } from '../../application/usecases/get-salon-ledger.usecase.js';
 
-@ApiTags('Accounting Ledger — Grand Livre & Séquestre Salon')
+@ApiTags('Payments')
 @Controller({ path: 'salons/:salonId/ledger', version: '1' })
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')

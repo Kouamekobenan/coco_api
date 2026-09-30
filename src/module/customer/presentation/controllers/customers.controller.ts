@@ -33,7 +33,7 @@ import {
 } from '../../application/usecases/customer.usecase.js';
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 
-@ApiTags('CRM — Clients & Fiches Techniques')
+@ApiTags('CRM')
 @Controller({ path: 'salons/:salonId/customers', version: '1' })
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')

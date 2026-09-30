@@ -31,7 +31,7 @@ import {
 import { Public } from '../../../auth/infrastructure/security/public.decorator.js';
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 
-@ApiTags('Staff — Compétences & Prestations')
+@ApiTags('Staff')
 @Controller({ path: 'salons/:salonId/staff/:staffId/services', version: '1' })
 export class StaffServicesController {
   constructor(

@@ -19,7 +19,7 @@ import { RedeemLoyaltyPointsDto } from '../../application/dtos/redeem-loyalty.dt
 import { LoyaltyAccountResponseDto } from '../../application/dtos/payment-response.dto.js';
 import { LoyaltyUseCase } from '../../application/usecases/loyalty.usecase.js';
 
-@ApiTags('Loyalty — Points de Fidélité & Réductions')
+@ApiTags('Loyalty')
 @Controller({ path: 'salons/:salonId/loyalty', version: '1' })
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')

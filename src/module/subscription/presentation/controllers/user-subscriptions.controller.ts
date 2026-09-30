@@ -19,7 +19,7 @@ import { SubscriptionQueryDto } from '../../application/dtos/subscription-query.
 import { PaginatedSubscriptionsResponseDto } from '../../application/dtos/salon-subscription-response.dto.js';
 import { GetUserSubscriptionsUseCase } from '../../application/usecases/get-user-subscriptions.usecase.js';
 
-@ApiTags('Utilisateurs — Mes Abonnements')
+@ApiTags('Subscriptions')
 @Controller({ path: 'users/me/subscriptions', version: '1' })
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')

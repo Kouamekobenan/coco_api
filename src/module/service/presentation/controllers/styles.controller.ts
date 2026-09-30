@@ -39,7 +39,7 @@ import { Public } from '../../../auth/infrastructure/security/public.decorator.j
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 import 'multer';
 
-@ApiTags('Styles — Tendances & Catalogue')
+@ApiTags('Services')
 @Controller({ path: 'styles', version: '1' })
 export class StylesController {
   constructor(

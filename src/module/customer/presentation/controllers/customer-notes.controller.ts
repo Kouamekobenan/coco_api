@@ -32,7 +32,7 @@ import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.gua
 import { CurrentUser } from '../../../auth/infrastructure/security/current-user.decorator.js';
 import type { TokenPayload } from '../../../auth/application/ports/token-service.port.js';
 
-@ApiTags('CRM — Notes & Fiches Techniques')
+@ApiTags('CRM')
 @Controller({ path: 'salons/:salonId/customers/:customerId/notes', version: '1' })
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')

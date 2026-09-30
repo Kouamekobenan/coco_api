@@ -33,7 +33,7 @@ import {
 import { Public } from '../../../auth/infrastructure/security/public.decorator.js';
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 
-@ApiTags('Salons — Promotions & Offres')
+@ApiTags('Salons')
 @Controller({ path: 'salons/:salonId/promotions', version: '1' })
 export class SalonPromotionsController {
   constructor(

@@ -24,7 +24,7 @@ import { BookingPhaseResponseDto } from '../../application/dtos/booking-response
 import { BookingDtoMapper } from '../../application/dtos/booking-dto.mapper.js';
 import { BookingPhasesUseCase } from '../../application/usecases/booking-phases.usecase.js';
 
-@ApiTags('Booking Phases — Étapes & Ressources Monopolisées')
+@ApiTags('Bookings')
 @Controller({ path: 'salons/:salonId/bookings/:bookingId/phases', version: '1' })
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')

@@ -38,7 +38,7 @@ import { Public } from '../../../auth/infrastructure/security/public.decorator.j
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 import 'multer';
 
-@ApiTags('Salons — Médias & Vitrine')
+@ApiTags('Salons')
 @Controller({ path: 'salons/:salonId/media', version: '1' })
 export class SalonMediaController {
   constructor(

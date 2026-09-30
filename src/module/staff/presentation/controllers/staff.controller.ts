@@ -38,7 +38,7 @@ import { Public } from '../../../auth/infrastructure/security/public.decorator.j
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 import 'multer';
 
-@ApiTags('Staff — Équipe & Coiffeurs')
+@ApiTags('Staff')
 @Controller({ path: 'salons/:salonId/staff', version: '1' })
 export class StaffController {
   constructor(

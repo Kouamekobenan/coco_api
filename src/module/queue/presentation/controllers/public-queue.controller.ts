@@ -5,7 +5,7 @@ import { PublicTicketStatusResponseDto } from '../../application/dtos/public-tic
 import { GetTicketUseCase } from '../../application/usecases/get-ticket.usecase.js';
 import { GenerateTicketPdfUseCase } from '../../application/usecases/generate-ticket-pdf.usecase.js';
 
-@ApiTags('Public Queue — Suivi Ticket Client (Web & QR Code)')
+@ApiTags('Queue')
 @Controller({ path: 'public/queue', version: '1' })
 export class PublicQueueController {
   constructor(

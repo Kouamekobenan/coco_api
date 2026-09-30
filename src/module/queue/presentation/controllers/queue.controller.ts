@@ -40,7 +40,7 @@ import { UpdateWaitEstimateUseCase } from '../../application/usecases/update-wai
 
 import { GenerateTicketPdfUseCase } from '../../application/usecases/generate-ticket-pdf.usecase.js';
 
-@ApiTags('Queue — File d\'Attente Hybride & Live Tracking')
+@ApiTags('Queue')
 @ApiBearerAuth('access-token')
 @Controller({ path: 'salons/:salonId/queue', version: '1' })
 export class QueueController {
