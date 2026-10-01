@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { createObserveModule } from '@nestjs/observe';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { AppQueueModule } from './common/queue/app-queue.module.js';
 import { AuthModule } from './module/auth/auth.module.js';
 import { SalonModule } from './module/salon/salon.module.js';
 import { ServiceModule } from './module/service/service.module.js';
@@ -24,11 +26,16 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       isGlobal: true,
       envFilePath: '.env',
     }),
+    EventEmitterModule.forRoot({
+      wildcard: true,
+      delimiter: '.',
+    }),
     ObserveModule.forRoot({
       appKey: 'YOUR_APP_KEY',
       appSecret: 'YOUR_APP_SECRET',
       serviceId: 'coco_api',
     }),
+    AppQueueModule,
     PrismaModule,
     AuthModule,
     SalonModule,

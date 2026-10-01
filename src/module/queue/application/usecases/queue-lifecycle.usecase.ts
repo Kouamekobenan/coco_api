@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { QueueTicketStatus, QueueType, BookingStatus } from '@prisma/client';
 import type { IQueueRepository } from '../../domain/repositories/queue.repository.interface.js';
 import { QUEUE_REPOSITORY } from '../../domain/repositories/queue.repository.interface.js';
@@ -7,9 +8,15 @@ import { BOOKING_REPOSITORY } from '../../../booking/domain/repositories/booking
 import type { ICustomerRepository } from '../../../customer/domain/repositories/customer.repository.interface.js';
 import { CUSTOMER_REPOSITORY } from '../../../customer/domain/repositories/customer.repository.interface.js';
 import { QueueTicketEntity } from '../../domain/entities/queue-ticket.entity.js';
+import { QueueTicketNotFoundException } from '../../domain/exceptions/queue-domain.exception.js';
 import {
-  QueueTicketNotFoundException,
-} from '../../domain/exceptions/queue-domain.exception.js';
+  QUEUE_EVENT_PATTERNS,
+  QueueTicketCalledEvent,
+  QueueTicketStartedEvent,
+  QueueTicketCompletedEvent,
+  QueueTicketLeftEvent,
+  QueueTicketNoShowEvent,
+} from '../../domain/events/queue-ticket.events.js';
 
 @Injectable()
 export class QueueLifecycleUseCase {
@@ -20,6 +27,7 @@ export class QueueLifecycleUseCase {
     private readonly bookingRepo: IBookingRepository,
     @Inject(CUSTOMER_REPOSITORY)
     private readonly customerRepo: ICustomerRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private async getTicketOrThrow(salonId: string, ticketId: string): Promise<QueueTicketEntity> {
@@ -53,7 +61,21 @@ export class QueueLifecycleUseCase {
 
     const nextTicket = sorted[0];
     nextTicket.call(graceMinutes);
-    return await this.queueRepo.update(nextTicket);
+    const updatedTicket = await this.queueRepo.update(nextTicket);
+
+    this.eventEmitter.emit(
+      QUEUE_EVENT_PATTERNS.TICKET_CALLED,
+      new QueueTicketCalledEvent(
+        updatedTicket.id,
+        updatedTicket.salonId,
+        updatedTicket.ticketNumber.value,
+        updatedTicket.callDeadlineAt || new Date(Date.now() + graceMinutes * 60000),
+        graceMinutes,
+        updatedTicket.customerId,
+      ),
+    );
+
+    return updatedTicket;
   }
 
   public async callTicket(
@@ -63,7 +85,21 @@ export class QueueLifecycleUseCase {
   ): Promise<QueueTicketEntity> {
     const ticket = await this.getTicketOrThrow(salonId, ticketId);
     ticket.call(graceMinutes);
-    return await this.queueRepo.update(ticket);
+    const updatedTicket = await this.queueRepo.update(ticket);
+
+    this.eventEmitter.emit(
+      QUEUE_EVENT_PATTERNS.TICKET_CALLED,
+      new QueueTicketCalledEvent(
+        updatedTicket.id,
+        updatedTicket.salonId,
+        updatedTicket.ticketNumber.value,
+        updatedTicket.callDeadlineAt || new Date(Date.now() + graceMinutes * 60000),
+        graceMinutes,
+        updatedTicket.customerId,
+      ),
+    );
+
+    return updatedTicket;
   }
 
   public async startService(salonId: string, ticketId: string): Promise<QueueTicketEntity> {
@@ -83,6 +119,15 @@ export class QueueLifecycleUseCase {
         await this.bookingRepo.update(booking);
       }
     }
+
+    this.eventEmitter.emit(
+      QUEUE_EVENT_PATTERNS.TICKET_STARTED,
+      new QueueTicketStartedEvent(
+        updatedTicket.id,
+        updatedTicket.salonId,
+        updatedTicket.ticketNumber.value,
+      ),
+    );
 
     return updatedTicket;
   }
@@ -112,13 +157,33 @@ export class QueueLifecycleUseCase {
       }
     }
 
+    this.eventEmitter.emit(
+      QUEUE_EVENT_PATTERNS.TICKET_COMPLETED,
+      new QueueTicketCompletedEvent(
+        updatedTicket.id,
+        updatedTicket.salonId,
+        updatedTicket.ticketNumber.value,
+      ),
+    );
+
     return updatedTicket;
   }
 
   public async markLeft(salonId: string, ticketId: string): Promise<QueueTicketEntity> {
     const ticket = await this.getTicketOrThrow(salonId, ticketId);
     ticket.markLeft();
-    return await this.queueRepo.update(ticket);
+    const updatedTicket = await this.queueRepo.update(ticket);
+
+    this.eventEmitter.emit(
+      QUEUE_EVENT_PATTERNS.TICKET_LEFT,
+      new QueueTicketLeftEvent(
+        updatedTicket.id,
+        updatedTicket.salonId,
+        updatedTicket.ticketNumber.value,
+      ),
+    );
+
+    return updatedTicket;
   }
 
   public async markNoShow(salonId: string, ticketId: string): Promise<QueueTicketEntity> {
@@ -134,6 +199,15 @@ export class QueueLifecycleUseCase {
         await this.bookingRepo.update(booking);
       }
     }
+
+    this.eventEmitter.emit(
+      QUEUE_EVENT_PATTERNS.TICKET_NO_SHOW,
+      new QueueTicketNoShowEvent(
+        updatedTicket.id,
+        updatedTicket.salonId,
+        updatedTicket.ticketNumber.value,
+      ),
+    );
 
     return updatedTicket;
   }

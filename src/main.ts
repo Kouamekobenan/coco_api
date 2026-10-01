@@ -3,14 +3,22 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
+import { ConfigService } from '@nestjs/config';
 import { AppModule, ObserveInstrument } from './app.module.js';
 import { DomainExceptionFilter } from './module/auth/infrastructure/filters/domain-exception.filter.js';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter.js';
+import { RedisIoAdapter } from './common/websockets/redis-io.adapter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     instrument: ObserveInstrument,
   });
+
+  // ── WebSockets & Redis Adapter ────────────────────────────────────────────
+  const configService = app.get(ConfigService);
+  const redisIoAdapter = new RedisIoAdapter(app, configService);
+  await redisIoAdapter.connectToRedis();
+  app.useWebSocketAdapter(redisIoAdapter);
 
   // ── Sécurité ──────────────────────────────────────────────────────────────
   app.use(helmet());
