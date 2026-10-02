@@ -74,4 +74,14 @@ export class QueueRealtimeEventListener {
       ticketId: event.ticketId,
     });
   }
+
+  @OnEvent('notification.received', { async: true })
+  public handleNotificationReceived(event: {
+    userId: string;
+    salonId?: string | null;
+    notification: unknown;
+  }): void {
+    this.logger.debug(`Relais notification In-App pour client ${event.userId}`);
+    this.queueGateway.sendNotificationToCustomer(event.userId, event.notification);
+  }
 }

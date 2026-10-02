@@ -210,4 +210,11 @@ export class QueueGateway implements OnGatewayConnection, OnGatewayDisconnect {
       timestamp: new Date(),
     });
   }
+
+  public sendNotificationToCustomer(customerId: string, notification: unknown): void {
+    const customerRoom = `customer:${customerId}`;
+    this.logger.debug(`[Temps Réel] Envoi notification:new sur ${customerRoom}`);
+    this.server.to(customerRoom).emit('notification:new', notification);
+  }
 }
+

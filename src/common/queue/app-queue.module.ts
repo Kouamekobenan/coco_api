@@ -72,14 +72,34 @@ const logger = new Logger('AppQueueModule');
       adapter: ExpressAdapter,
     }),
 
-    BullModule.registerQueue({
-      name: QUEUE_NAMES.QUEUE_LIFECYCLE,
-    }),
+    BullModule.registerQueue(
+      {
+        name: QUEUE_NAMES.QUEUE_LIFECYCLE,
+      },
+      {
+        name: QUEUE_NAMES.NOTIFICATIONS,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: {
+            type: 'exponential',
+            delay: 5000,
+          },
+          removeOnComplete: 100,
+          removeOnFail: 500,
+        },
+      },
+    ),
 
-    BullBoardModule.forFeature({
-      name: QUEUE_NAMES.QUEUE_LIFECYCLE,
-      adapter: BullMQAdapter,
-    }),
+    BullBoardModule.forFeature(
+      {
+        name: QUEUE_NAMES.QUEUE_LIFECYCLE,
+        adapter: BullMQAdapter,
+      },
+      {
+        name: QUEUE_NAMES.NOTIFICATIONS,
+        adapter: BullMQAdapter,
+      },
+    ),
   ],
   exports: [BullModule, BullBoardModule],
 })
