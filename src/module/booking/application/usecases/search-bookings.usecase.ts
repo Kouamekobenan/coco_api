@@ -30,12 +30,15 @@ export class SearchBookingsUseCase {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    const rawDateFrom = query.dateFrom ?? query.startDate;
+    const rawDateTo = query.dateTo ?? query.endDate;
+
     const { bookings, total } = await this.bookingRepo.findBySalonId(salonId, {
       status: query.status,
       staffId: query.staffId,
       customerId: query.customerId,
-      dateFrom: query.dateFrom ? new Date(query.dateFrom) : undefined,
-      dateTo: query.dateTo ? new Date(query.dateTo) : undefined,
+      dateFrom: rawDateFrom ? new Date(rawDateFrom) : undefined,
+      dateTo: rawDateTo ? new Date(rawDateTo) : undefined,
       skip,
       take: limit,
     });

@@ -24,6 +24,10 @@ import { BookingPhasesUseCase } from './application/usecases/booking-phases.usec
 import { BookingsController } from './presentation/controllers/bookings.controller.js';
 import { BookingPhasesController } from './presentation/controllers/booking-phases.controller.js';
 
+import { BullModule } from '@nestjs/bullmq';
+import { QUEUE_NAMES } from '../../common/queue/queue.constants.js';
+import { BookingLifecycleEventListener } from './infrastructure/listeners/booking-lifecycle-event.listener.js';
+
 @Module({
   imports: [
     PrismaModule,
@@ -32,6 +36,9 @@ import { BookingPhasesController } from './presentation/controllers/booking-phas
     StaffModule,
     CustomerModule,
     AuthModule,
+    BullModule.registerQueue({
+      name: QUEUE_NAMES.QUEUE_LIFECYCLE,
+    }),
   ],
   controllers: [BookingsController, BookingPhasesController],
   providers: [
@@ -48,6 +55,9 @@ import { BookingPhasesController } from './presentation/controllers/booking-phas
     SearchBookingsUseCase,
     BookingLifecycleUseCase,
     BookingPhasesUseCase,
+
+    // Event Listeners (BullMQ Timer Arming)
+    BookingLifecycleEventListener,
   ],
   exports: [
     BOOKING_REPOSITORY,

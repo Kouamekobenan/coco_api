@@ -29,6 +29,16 @@ export class BookingQueryDto {
   @IsOptional()
   public dateTo?: string;
 
+  @ApiPropertyOptional({ description: 'Alias pour dateFrom (ISO 8601)' })
+  @IsDateString()
+  @IsOptional()
+  public startDate?: string;
+
+  @ApiPropertyOptional({ description: 'Alias pour dateTo (ISO 8601)' })
+  @IsDateString()
+  @IsOptional()
+  public endDate?: string;
+
   @ApiPropertyOptional({ default: 1, minimum: 1 })
   @Type(() => Number)
   @IsInt()

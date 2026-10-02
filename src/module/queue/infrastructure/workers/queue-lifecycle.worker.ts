@@ -2,7 +2,7 @@ import { Inject, Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { QueueTicketStatus } from '@prisma/client';
+import { QueueTicketStatus, BookingStatus } from '@prisma/client';
 import { QUEUE_NAMES, QUEUE_JOBS } from '../../../../common/queue/queue.constants.js';
 import {
   QUEUE_REPOSITORY,
@@ -16,9 +16,18 @@ import {
   QUEUE_EVENT_PATTERNS,
   QueueTicketNoShowEvent,
 } from '../../domain/events/queue-ticket.events.js';
+import {
+  BOOKING_EVENT_PATTERNS,
+  BookingHoldExpiredEvent,
+} from '../../../booking/domain/events/booking.events.js';
 
 interface CheckNoShowJobPayload {
   ticketId: string;
+  salonId: string;
+}
+
+interface ReleaseUnpaidBookingJobPayload {
+  bookingId: string;
   salonId: string;
 }
 
@@ -36,9 +45,11 @@ export class QueueLifecycleWorker extends WorkerHost {
     super();
   }
 
-  public async process(job: Job<CheckNoShowJobPayload>): Promise<void> {
+  public async process(job: Job<CheckNoShowJobPayload | ReleaseUnpaidBookingJobPayload>): Promise<void> {
     if (job.name === QUEUE_JOBS.CHECK_NO_SHOW) {
-      await this.processNoShowCheck(job.data);
+      await this.processNoShowCheck(job.data as CheckNoShowJobPayload);
+    } else if (job.name === QUEUE_JOBS.RELEASE_UNPAID_BOOKING) {
+      await this.processReleaseUnpaidBooking(job.data as ReleaseUnpaidBookingJobPayload);
     }
   }
 
@@ -81,6 +92,40 @@ export class QueueLifecycleWorker extends WorkerHost {
     } else {
       this.logger.debug(
         `Ticket #${ticket.ticketNumber.value} n'est plus en attente d'appel (Statut actuel: ${ticket.status}). Aucune action No-Show requise.`,
+      );
+    }
+  }
+
+  private async processReleaseUnpaidBooking(payload: ReleaseUnpaidBookingJobPayload): Promise<void> {
+    const { bookingId, salonId } = payload;
+    const booking = await this.bookingRepo.findById(bookingId);
+
+    if (!booking) {
+      this.logger.warn(`Vérification Hold 15 min: Réservation ${bookingId} introuvable.`);
+      return;
+    }
+
+    if (booking.salonId !== salonId) {
+      this.logger.warn(`Vérification Hold: Incohérence salonId pour la réservation ${bookingId}.`);
+      return;
+    }
+
+    // Si la réservation est toujours en attente d'acompte (non payé dans les 15 minutes)
+    if (booking.status === BookingStatus.PENDING_DEPOSIT) {
+      this.logger.log(
+        `Délai de Hold (15 min) expiré pour la réservation ${booking.id}. Créneau libéré et passage en EXPIRED.`,
+      );
+
+      booking.expireHold();
+      await this.bookingRepo.update(booking);
+
+      this.eventEmitter.emit(
+        BOOKING_EVENT_PATTERNS.BOOKING_EXPIRED,
+        new BookingHoldExpiredEvent(booking.id, booking.salonId, booking.customerId, new Date()),
+      );
+    } else {
+      this.logger.debug(
+        `Réservation ${booking.id} n'est plus en attente d'acompte (Statut actuel: ${booking.status}). Aucune expiration requise.`,
       );
     }
   }

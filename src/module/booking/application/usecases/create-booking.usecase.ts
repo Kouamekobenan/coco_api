@@ -17,10 +17,15 @@ import { CreateBookingDto } from '../dtos/create-booking.dto.js';
 import {
   BookingSlotUnavailableException,
 } from '../../domain/exceptions/booking-domain.exception.js';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { SalonNotFoundException } from '../../../salon/domain/exceptions/salon-domain.exception.js';
 import { ServiceVariantNotFoundException } from '../../../service/domain/exceptions/service-domain.exception.js';
 import { SalonCustomerNotFoundException } from '../../../customer/domain/exceptions/customer-domain.exception.js';
 import { StaffNotFoundException } from '../../../staff/domain/exceptions/staff-domain.exception.js';
+import {
+  BOOKING_EVENT_PATTERNS,
+  BookingCreatedEvent,
+} from '../../domain/events/booking.events.js';
 
 @Injectable()
 export class CreateBookingUseCase {
@@ -35,6 +40,7 @@ export class CreateBookingUseCase {
     private readonly customerRepo: ICustomerRepository,
     @Inject(STAFF_REPOSITORY)
     private readonly staffRepo: IStaffRepository,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   public async execute(salonId: string, dto: CreateBookingDto): Promise<BookingEntity> {
@@ -171,6 +177,20 @@ export class CreateBookingUseCase {
       clientNotes: dto.clientNotes ?? null,
     });
 
-    return await this.bookingRepo.save(booking);
+    const savedBooking = await this.bookingRepo.save(booking);
+
+    this.eventEmitter.emit(
+      BOOKING_EVENT_PATTERNS.BOOKING_CREATED,
+      new BookingCreatedEvent(
+        savedBooking.id,
+        savedBooking.salonId,
+        savedBooking.customerId,
+        requiresDeposit,
+        savedBooking.holdExpiresAt,
+        savedBooking.scheduledStart,
+      ),
+    );
+
+    return savedBooking;
   }
 }

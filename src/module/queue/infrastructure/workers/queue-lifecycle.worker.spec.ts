@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Job } from 'bullmq';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { QueueTicketStatus, QueueType } from '@prisma/client';
+import { QueueTicketStatus, QueueType, BookingStatus } from '@prisma/client';
 import { QueueLifecycleWorker } from './queue-lifecycle.worker.js';
 import type { IQueueRepository } from '../../domain/repositories/queue.repository.interface.js';
 import type { IBookingRepository } from '../../../booking/domain/repositories/booking.repository.interface.js';
@@ -88,4 +88,60 @@ describe('QueueLifecycleWorker', () => {
     expect(mockQueueRepo.update).not.toHaveBeenCalled();
     expect(mockEventEmitter.emit).not.toHaveBeenCalled();
   });
+
+  describe('release-unpaid-booking (Hold 15 min)', () => {
+    it('devrait passer la réservation en EXPIRED si l\'acompte n\'a pas été payé dans les 15 min', async () => {
+      const mockBooking = {
+        id: 'booking-999',
+        salonId: 'salon-1',
+        customerId: 'customer-1',
+        status: BookingStatus.PENDING_DEPOSIT,
+        expireHold: vi.fn().mockImplementation(function (this: any) {
+          this.status = BookingStatus.EXPIRED;
+        }),
+      };
+
+      vi.mocked(mockBookingRepo.findById).mockResolvedValue(mockBooking as any);
+
+      const mockJob = {
+        name: QUEUE_JOBS.RELEASE_UNPAID_BOOKING,
+        data: { bookingId: 'booking-999', salonId: 'salon-1' },
+      } as unknown as Job;
+
+      await worker.process(mockJob);
+
+      expect(mockBooking.expireHold).toHaveBeenCalledTimes(1);
+      expect(mockBookingRepo.update).toHaveBeenCalledWith(mockBooking);
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'booking.expired',
+        expect.objectContaining({
+          bookingId: 'booking-999',
+          salonId: 'salon-1',
+        }),
+      );
+    });
+
+    it('ne devrait rien faire si la réservation a été confirmée / payée avant l\'expiration', async () => {
+      const mockBooking = {
+        id: 'booking-999',
+        salonId: 'salon-1',
+        customerId: 'customer-1',
+        status: BookingStatus.CONFIRMED,
+        expireHold: vi.fn(),
+      };
+
+      vi.mocked(mockBookingRepo.findById).mockResolvedValue(mockBooking as any);
+
+      const mockJob = {
+        name: QUEUE_JOBS.RELEASE_UNPAID_BOOKING,
+        data: { bookingId: 'booking-999', salonId: 'salon-1' },
+      } as unknown as Job;
+
+      await worker.process(mockJob);
+
+      expect(mockBooking.expireHold).not.toHaveBeenCalled();
+      expect(mockBookingRepo.update).not.toHaveBeenCalled();
+    });
+  });
 });
+

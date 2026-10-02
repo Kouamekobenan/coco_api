@@ -14,6 +14,7 @@ import {
   UserEmailAlreadyExistsException,
   UserNotFoundException,
 } from '../../domain/exceptions/domain.exception.js';
+import { SalonDomainException } from '../../../salon/domain/exceptions/salon-domain.exception.js';
 import { ServiceDomainException } from '../../../service/domain/exceptions/service-domain.exception.js';
 import { StaffDomainException } from '../../../staff/domain/exceptions/staff-domain.exception.js';
 import { CustomerDomainException } from '../../../customer/domain/exceptions/customer-domain.exception.js';
@@ -24,6 +25,7 @@ import { SubscriptionDomainException } from '../../../subscription/domain/except
 
 @Catch(
   DomainException,
+  SalonDomainException,
   ServiceDomainException,
   StaffDomainException,
   CustomerDomainException,

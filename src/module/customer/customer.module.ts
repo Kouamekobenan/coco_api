@@ -31,6 +31,9 @@ import {
 import { CustomersController } from './presentation/controllers/customers.controller.js';
 import { CustomerNotesController } from './presentation/controllers/customer-notes.controller.js';
 
+// Event Listeners (CRM Synchro)
+import { CustomerSyncEventListener } from './infrastructure/listeners/customer-sync-event.listener.js';
+
 @Module({
   imports: [PrismaModule, SalonModule, AuthModule],
   controllers: [CustomersController, CustomerNotesController],
@@ -54,6 +57,9 @@ import { CustomerNotesController } from './presentation/controllers/customer-not
     GetCustomerNotesUseCase,
     UpdateCustomerNoteUseCase,
     DeleteCustomerNoteUseCase,
+
+    // Event Listeners
+    CustomerSyncEventListener,
   ],
   exports: [
     CUSTOMER_REPOSITORY,

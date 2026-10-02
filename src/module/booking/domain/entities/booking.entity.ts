@@ -176,6 +176,14 @@ export class BookingEntity {
     return this._props.status === BookingStatus.PENDING_DEPOSIT && now > this._props.holdExpiresAt;
   }
 
+  public expireHold(): void {
+    if (this._props.status !== BookingStatus.PENDING_DEPOSIT) {
+      throw new InvalidBookingStatusTransitionException(this._props.status, BookingStatus.EXPIRED);
+    }
+    this._props.status = BookingStatus.EXPIRED;
+    this._props.updatedAt = new Date();
+  }
+
   public confirmDeposit(paidAt: Date = new Date()): void {
     if (this._props.status !== BookingStatus.PENDING_DEPOSIT && this._props.status !== BookingStatus.DRAFT) {
       throw new InvalidBookingStatusTransitionException(this._props.status, BookingStatus.CONFIRMED);
