@@ -26,6 +26,7 @@ import {
   BOOKING_EVENT_PATTERNS,
   BookingCreatedEvent,
 } from '../../domain/events/booking.events.js';
+import { DistributedLockService } from '../../../../common/lock/distributed-lock.service.js';
 
 @Injectable()
 export class CreateBookingUseCase {
@@ -41,10 +42,42 @@ export class CreateBookingUseCase {
     @Inject(STAFF_REPOSITORY)
     private readonly staffRepo: IStaffRepository,
     private readonly eventEmitter: EventEmitter2,
+    private readonly distributedLockService: DistributedLockService,
   ) {}
 
   public async execute(salonId: string, dto: CreateBookingDto): Promise<BookingEntity> {
-    // 1. Idempotency Check (Protection coupures réseau)
+    // 1. Idempotency Check rapide avant verrou (Protection coupures réseau)
+    const existingBooking = await this.bookingRepo.findByIdempotencyKey(dto.idempotencyKey);
+    if (existingBooking) {
+      return existingBooking;
+    }
+
+    // 2. Définition de la clé de verrouillage distribué (Anti-Double Réservation)
+    // On verrouille la ressource critique (le coiffeur ciblé ou le salon)
+    const lockKey = dto.staffId
+      ? `lock:booking:staff:${dto.staffId}`
+      : `lock:booking:salon:${salonId}`;
+
+    try {
+      return await this.distributedLockService.withLock(
+        lockKey,
+        async () => this.processBooking(salonId, dto),
+        7000, // 7 secondes max de lock
+        15,   // 15 tentatives max
+        150,  // 150ms d'intervalle avec jitter
+      );
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.startsWith('LOCK_ACQUISITION_TIMEOUT')) {
+        throw new BookingSlotUnavailableException(
+          'Un autre client est actuellement en train de réserver ce créneau. Veuillez réessayer dans quelques instants.',
+        );
+      }
+      throw err;
+    }
+  }
+
+  private async processBooking(salonId: string, dto: CreateBookingDto): Promise<BookingEntity> {
+    // Re-vérification idempotence sous verrou
     const existingBooking = await this.bookingRepo.findByIdempotencyKey(dto.idempotencyKey);
     if (existingBooking) {
       return existingBooking;

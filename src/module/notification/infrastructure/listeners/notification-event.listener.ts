@@ -15,6 +15,7 @@ import {
   BookingCompletedEvent,
   BookingNoShowEvent,
   BookingHoldExpiredEvent,
+  BookingReminderEvent,
 } from '../../../booking/domain/events/booking.events.js';
 import { SendNotificationUseCase } from '../../application/usecases/send-notification.usecase.js';
 
@@ -264,5 +265,36 @@ export class NotificationEventListener {
       this.logger.error(`Erreur notification BOOKING_DELAY_UPDATED: ${msg}`);
     }
   }
+
+  @OnEvent(BOOKING_EVENT_PATTERNS.BOOKING_REMINDER, { async: true })
+  public async handleBookingReminder(event: BookingReminderEvent): Promise<void> {
+    const timeFormatted = new Intl.DateTimeFormat('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Africa/Abidjan',
+    }).format(new Date(event.scheduledStart));
+
+    this.logger.log(
+      `[NotificationEventListener] Envoi rappel 2h pour réservation ${event.bookingId} (client: ${event.customerId})`,
+    );
+
+    try {
+      await this.sendNotificationUseCase.execute({
+        userId: event.customerId,
+        salonId: event.salonId,
+        title: 'Rappel de rendez-vous dans 2h ⏰',
+        body: `Votre séance est prévue aujourd'hui à ${timeFormatted}. Votre créneau vous attend au salon !`,
+        data: {
+          type: 'BOOKING_REMINDER',
+          bookingId: event.bookingId,
+          scheduledStart: new Date(event.scheduledStart).toISOString(),
+        },
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(`Erreur notification BOOKING_REMINDER: ${msg}`);
+    }
+  }
 }
+
 

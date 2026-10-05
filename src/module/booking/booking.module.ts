@@ -27,6 +27,8 @@ import { BookingPhasesController } from './presentation/controllers/booking-phas
 import { BullModule } from '@nestjs/bullmq';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants.js';
 import { BookingLifecycleEventListener } from './infrastructure/listeners/booking-lifecycle-event.listener.js';
+import { ExpiredHoldsScheduler } from './infrastructure/schedulers/expired-holds.scheduler.js';
+import { LockModule } from '../../common/lock/lock.module.js';
 
 @Module({
   imports: [
@@ -36,6 +38,7 @@ import { BookingLifecycleEventListener } from './infrastructure/listeners/bookin
     StaffModule,
     CustomerModule,
     AuthModule,
+    LockModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.QUEUE_LIFECYCLE,
     }),
@@ -58,6 +61,9 @@ import { BookingLifecycleEventListener } from './infrastructure/listeners/bookin
 
     // Event Listeners (BullMQ Timer Arming)
     BookingLifecycleEventListener,
+
+    // Schedulers (Periodic Sweeper)
+    ExpiredHoldsScheduler,
   ],
   exports: [
     BOOKING_REPOSITORY,

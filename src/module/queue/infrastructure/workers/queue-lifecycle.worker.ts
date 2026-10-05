@@ -19,6 +19,7 @@ import {
 import {
   BOOKING_EVENT_PATTERNS,
   BookingHoldExpiredEvent,
+  BookingReminderEvent,
 } from '../../../booking/domain/events/booking.events.js';
 
 interface CheckNoShowJobPayload {
@@ -27,6 +28,11 @@ interface CheckNoShowJobPayload {
 }
 
 interface ReleaseUnpaidBookingJobPayload {
+  bookingId: string;
+  salonId: string;
+}
+
+interface RemindUpcomingBookingJobPayload {
   bookingId: string;
   salonId: string;
 }
@@ -45,11 +51,15 @@ export class QueueLifecycleWorker extends WorkerHost {
     super();
   }
 
-  public async process(job: Job<CheckNoShowJobPayload | ReleaseUnpaidBookingJobPayload>): Promise<void> {
+  public async process(
+    job: Job<CheckNoShowJobPayload | ReleaseUnpaidBookingJobPayload | RemindUpcomingBookingJobPayload>,
+  ): Promise<void> {
     if (job.name === QUEUE_JOBS.CHECK_NO_SHOW) {
       await this.processNoShowCheck(job.data as CheckNoShowJobPayload);
     } else if (job.name === QUEUE_JOBS.RELEASE_UNPAID_BOOKING) {
       await this.processReleaseUnpaidBooking(job.data as ReleaseUnpaidBookingJobPayload);
+    } else if (job.name === QUEUE_JOBS.REMIND_UPCOMING_BOOKING) {
+      await this.processRemindUpcomingBooking(job.data as RemindUpcomingBookingJobPayload);
     }
   }
 
@@ -129,4 +139,41 @@ export class QueueLifecycleWorker extends WorkerHost {
       );
     }
   }
+
+  private async processRemindUpcomingBooking(payload: RemindUpcomingBookingJobPayload): Promise<void> {
+    const { bookingId, salonId } = payload;
+    const booking = await this.bookingRepo.findById(bookingId);
+
+    if (!booking) {
+      this.logger.warn(`Rappel 2h: Réservation ${bookingId} introuvable.`);
+      return;
+    }
+
+    if (booking.salonId !== salonId) {
+      this.logger.warn(`Rappel 2h: Incohérence salonId pour la réservation ${bookingId}.`);
+      return;
+    }
+
+    // Le rappel est envoyé uniquement si le RDV est confirmé ou checké (et non annulé/terminé)
+    if (booking.status === BookingStatus.CONFIRMED || booking.status === BookingStatus.CHECKED_IN) {
+      this.logger.log(
+        `[QueueLifecycleWorker] Émission du rappel de RDV 2h pour la réservation ${bookingId} (client: ${booking.customerId})`,
+      );
+
+      this.eventEmitter.emit(
+        BOOKING_EVENT_PATTERNS.BOOKING_REMINDER,
+        new BookingReminderEvent(
+          booking.id,
+          booking.salonId,
+          booking.customerId,
+          booking.scheduledStart,
+        ),
+      );
+    } else {
+      this.logger.debug(
+        `Rappel 2h ignoré pour la réservation ${bookingId} (Statut actuel: ${booking.status})`,
+      );
+    }
+  }
 }
+
