@@ -51,8 +51,48 @@ describe('NotificationEventListener', () => {
       expect.objectContaining({
         userId: 'client-2',
         salonId: 'salon-1',
-        title: 'Réservation confirmée !',
+        title: expect.stringContaining('Réservation confirmée'),
         body: expect.stringContaining('5000 FCFA'),
+      }),
+    );
+  });
+
+  it('doit envoyer une notification lors de la création d\'un ticket', async () => {
+    const event = {
+      ticketId: 'ticket-10',
+      salonId: 'salon-1',
+      ticketNumber: 'W-020',
+      queueType: 'WALK_IN',
+      customerId: 'client-3',
+    };
+
+    await listener.handleTicketCreated(event);
+
+    expect(mockSendNotificationUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'client-3',
+        salonId: 'salon-1',
+        title: expect.stringContaining('Ticket #W-020'),
+      }),
+    );
+  });
+
+  it('doit envoyer une notification d\'avis lorsque la réservation est terminée', async () => {
+    const event = {
+      bookingId: 'booking-100',
+      salonId: 'salon-1',
+      customerId: 'client-4',
+      totalPrice: 15000,
+      completedAt: new Date(),
+    };
+
+    await listener.handleBookingCompleted(event);
+
+    expect(mockSendNotificationUseCase.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'client-4',
+        salonId: 'salon-1',
+        title: expect.stringContaining('Merci pour votre visite'),
       }),
     );
   });
