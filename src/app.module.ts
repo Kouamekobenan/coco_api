@@ -6,6 +6,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AppQueueModule } from './common/queue/app-queue.module.js';
+import { LockModule } from './common/lock/lock.module.js';
 import { AuthModule } from './module/auth/auth.module.js';
 import { SalonModule } from './module/salon/salon.module.js';
 import { ServiceModule } from './module/service/service.module.js';
@@ -18,6 +19,8 @@ import { CloudinaryModule } from './common/cloudinary/cloudinary.module.js';
 import { SubscriptionModule } from './module/subscription/subscription.module.js';
 import { AdminModule } from './module/admin/admin.module.js';
 import { NotificationModule } from './module/notification/notification.module.js';
+import { HealthModule } from './module/health/health.module.js';
+import { ScheduleModule } from '@nestjs/schedule';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -27,6 +30,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       isGlobal: true,
       envFilePath: '.env',
     }),
+    ScheduleModule.forRoot(),
     EventEmitterModule.forRoot({
       wildcard: true,
       delimiter: '.',
@@ -36,7 +40,9 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
       appSecret: 'YOUR_APP_SECRET',
       serviceId: 'coco_api',
     }),
+    HealthModule,
     AppQueueModule,
+    LockModule,
     PrismaModule,
     AuthModule,
     SalonModule,

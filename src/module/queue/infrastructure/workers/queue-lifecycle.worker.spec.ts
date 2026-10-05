@@ -143,5 +143,56 @@ describe('QueueLifecycleWorker', () => {
       expect(mockBookingRepo.update).not.toHaveBeenCalled();
     });
   });
+
+  describe('remind-upcoming-booking (Rappel 2h avant RDV)', () => {
+    it('devrait émettre booking.reminder si la réservation est confirmée', async () => {
+      const mockBooking = {
+        id: 'b-remind-1',
+        salonId: 'salon-1',
+        customerId: 'customer-1',
+        status: BookingStatus.CONFIRMED,
+        scheduledStart: new Date(Date.now() + 2 * 60 * 60 * 1000),
+      };
+
+      vi.mocked(mockBookingRepo.findById).mockResolvedValue(mockBooking as any);
+
+      const mockJob = {
+        name: QUEUE_JOBS.REMIND_UPCOMING_BOOKING,
+        data: { bookingId: 'b-remind-1', salonId: 'salon-1' },
+      } as unknown as Job;
+
+      await worker.process(mockJob);
+
+      expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+        'booking.reminder',
+        expect.objectContaining({
+          bookingId: 'b-remind-1',
+          salonId: 'salon-1',
+          customerId: 'customer-1',
+        }),
+      );
+    });
+
+    it('ne devrait PAS émettre de rappel si la réservation a été annulée entre-temps', async () => {
+      const mockBooking = {
+        id: 'b-remind-2',
+        salonId: 'salon-1',
+        customerId: 'customer-1',
+        status: BookingStatus.CANCELLED,
+      };
+
+      vi.mocked(mockBookingRepo.findById).mockResolvedValue(mockBooking as any);
+
+      const mockJob = {
+        name: QUEUE_JOBS.REMIND_UPCOMING_BOOKING,
+        data: { bookingId: 'b-remind-2', salonId: 'salon-1' },
+      } as unknown as Job;
+
+      await worker.process(mockJob);
+
+      expect(mockEventEmitter.emit).not.toHaveBeenCalled();
+    });
+  });
 });
+
 

@@ -15,7 +15,9 @@ import {
   BookingDepositConfirmedEvent,
   BookingNoShowEvent,
   BookingStartedEvent,
+  BookingHoldExpiredEvent,
 } from '../../domain/events/booking.events.js';
+import { BookingStatus } from '@prisma/client';
 
 @Injectable()
 export class BookingLifecycleUseCase {
@@ -174,4 +176,25 @@ export class BookingLifecycleUseCase {
 
     return updated;
   }
+
+  public async expireHold(bookingId: string): Promise<BookingEntity | null> {
+    const booking = await this.bookingRepo.findById(bookingId);
+    if (!booking) return null;
+
+    if (booking.status === BookingStatus.PENDING_DEPOSIT) {
+      const expiredAt = new Date();
+      booking.expireHold();
+      const updated = await this.bookingRepo.update(booking);
+
+      this.eventEmitter.emit(
+        BOOKING_EVENT_PATTERNS.BOOKING_EXPIRED,
+        new BookingHoldExpiredEvent(updated.id, updated.salonId, updated.customerId, expiredAt),
+      );
+
+      return updated;
+    }
+
+    return null;
+  }
 }
+

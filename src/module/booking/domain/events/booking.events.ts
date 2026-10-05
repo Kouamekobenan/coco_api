@@ -8,6 +8,7 @@ export const BOOKING_EVENT_PATTERNS = {
   BOOKING_NO_SHOW: 'booking.no_show',
   BOOKING_EXPIRED: 'booking.expired',
   BOOKING_DELAY_UPDATED: 'booking.delay_updated',
+  BOOKING_REMINDER: 'booking.reminder',
 } as const;
 
 export class BookingCreatedEvent {
@@ -98,3 +99,14 @@ export class BookingDelayUpdatedEvent {
     public readonly updatedAt: Date = new Date(),
   ) {}
 }
+
+export class BookingReminderEvent {
+  constructor(
+    public readonly bookingId: string,
+    public readonly salonId: string,
+    public readonly customerId: string,
+    public readonly scheduledStart: Date,
+    public readonly staffName?: string,
+  ) {}
+}
+
