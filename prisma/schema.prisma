@@ -189,6 +189,7 @@ model User {
   notificationPref    NotificationPreference?
   staffProfile        Staff?
   subscriptions       SalonSubscription[]
+  notifications       Notification[]
 
   @@index([phone])
 }
@@ -318,6 +319,7 @@ model Salon {
   loyaltyAccounts  LoyaltyAccount[]
   customerNotes    CustomerNote[]
   subscriptions    SalonSubscription[]
+  notifications    Notification[]
 
   @@index([status, universe])
   @@index([commune, quartier])
@@ -886,6 +888,26 @@ model NotificationPreference {
   updatedAt       DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String
+  salonId   String?             // Salon expéditeur si applicable
+  title     String
+  body      String
+  channel   NotificationChannel // PUSH, SMS, IN_APP, WHATSAPP
+  isRead    Boolean             @default(false)
+  readAt    DateTime?
+  data      Json?               // { ticketId: "...", bookingId: "...", actionUrl: "..." }
+  createdAt DateTime            @default(now())
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  salon Salon? @relation(fields: [salonId], references: [id], onDelete: SetNull)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@index([salonId])
 }
 
 // =============================================================================

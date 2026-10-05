@@ -17,6 +17,7 @@ import { PaymentModule } from './module/payment/payment.module.js';
 import { CloudinaryModule } from './common/cloudinary/cloudinary.module.js';
 import { SubscriptionModule } from './module/subscription/subscription.module.js';
 import { AdminModule } from './module/admin/admin.module.js';
+import { NotificationModule } from './module/notification/notification.module.js';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
 
@@ -48,6 +49,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     CloudinaryModule,
     SubscriptionModule,
     AdminModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [AppService],
