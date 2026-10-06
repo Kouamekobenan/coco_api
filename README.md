@@ -24,6 +24,11 @@
 - [Installation & Démarrage](#-installation--démarrage)
 - [Variables d'environnement](#-variables-denvironnement)
 - [Architecture](#-architecture)
+- [Module Auth & Sécurité (Firebase Phone Auth OTP)](#-module-auth--sécurité)
+  - [Principe du flux OTP SMS Firebase](#principe-du-flux-otp-sms-firebase)
+  - [Guide d'intégration Frontend — Flutter (Dart)](#guide-dintégration-frontend--flutter-dart)
+  - [Guide d'intégration Frontend — React Native / React Web](#guide-dintégration-frontend--react-native--react-web)
+  - [Référence Endpoint API Backend](#référence-endpoint-api-backend)
 - [Module Salon](#-module-salon)
   - [Vue d'ensemble](#vue-densemble)
   - [Modèle de données](#modèle-de-données)
@@ -146,6 +151,250 @@ src/module/<nom_module>/
 └── presentation/
     └── controllers/       → Contrôleurs HTTP NestJS
 ```
+
+---
+
+## 🔐 Module Auth & Sécurité
+
+### Principe du flux OTP SMS Firebase
+
+Pour permettre la réinitialisation de mot de passe sécurisée et **100 % gratuite (10 000 SMS/mois offerts par Google)**, la vérification par SMS est déléguée au SDK Client Firebase (Flutter, React Native ou Web), tandis que le backend valide cryptographiquement le jeton via le compte de service Firebase (`firebase-admin`).
+
+```
+┌─────────────────┐       1. Saisie Numéro (+225...)       ┌────────────────────────┐
+│  Client Mobile  │ ───────────────────────────────────────>│  Google Firebase Auth  │
+│ (Flutter / RN)  │ <───────────────────────────────────────│   (Envoi SMS gratuit)  │
+│                 │           2. SMS avec Code (ex: 482910) └────────────────────────┘
+│                 │
+│                 │       3. Validation du Code (482910)    ┌────────────────────────┐
+│                 │ ───────────────────────────────────────>│  Google Firebase Auth  │
+│                 │ <───────────────────────────────────────│  (Délivrance idToken) │
+│                 │        4. Renvoie le firebaseIdToken    └────────────────────────┘
+│                 │
+│                 │ 5. POST /api/v1/auth/reset-password
+│                 │    { firebaseIdToken, newPassword }     ┌────────────────────────┐
+│                 │ ───────────────────────────────────────>│   Backend coco_api     │
+│                 │                                         │ 6. Vérifie signature   │
+│                 │ <───────────────────────────────────────│ 7. Met à jour le mdp   │
+│                 │        8. 200 OK (Sessions révoquées)   │ 8. Révoque sessions    │
+└─────────────────┘                                         └────────────────────────┘
+```
+
+---
+
+### Guide d'intégration Frontend — Flutter (Dart)
+
+#### 1. Prérequis & Packages
+Dans votre fichier `pubspec.yaml` :
+```yaml
+dependencies:
+  firebase_core: ^3.0.0
+  firebase_auth: ^5.0.0
+  http: ^1.2.0
+```
+
+#### 2. Déclencher l'envoi du SMS gratuit
+```dart
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+final FirebaseAuth _auth = FirebaseAuth.instance;
+String? _verificationId;
+
+// 1. Déclencher l'envoi du SMS
+Future<void> sendOtpCode(String rawPhoneNumber) async {
+  // rawPhoneNumber = "+2250701020304" (format international obligatoire)
+  await _auth.verifyPhoneNumber(
+    phoneNumber: rawPhoneNumber,
+    timeout: const Duration(seconds: 60),
+    verificationCompleted: (PhoneAuthCredential credential) async {
+      // Auto-résolution sous Android (optionnel)
+      await _confirmAndReset(credential, "NouveauMotDePasse123!");
+    },
+    verificationFailed: (FirebaseAuthException e) {
+      print("Erreur Firebase SMS: ${e.message}");
+    },
+    codeSent: (String verificationId, int? resendToken) {
+      _verificationId = verificationId;
+      print("SMS envoyé ! Veuillez saisir le code à 6 chiffres.");
+    },
+    codeAutoRetrievalTimeout: (String verificationId) {
+      _verificationId = verificationId;
+    },
+  );
+}
+
+// 2. Vérifier le code et appeler l'API coco_api
+Future<void> verifyCodeAndResetPassword({
+  required String smsCode,
+  required String newPassword,
+}) async {
+  if (_verificationId == null) return;
+
+  // Créer le credential Firebase avec le code à 6 chiffres tapé par l'utilisateur
+  final PhoneAuthCredential credential = PhoneAuthProvider.credential(
+    verificationId: _verificationId!,
+    smsCode: smsCode,
+  );
+
+  await _confirmAndReset(credential, newPassword);
+}
+
+// 3. Obtenir l'idToken et envoyer au backend
+Future<void> _confirmAndReset(PhoneAuthCredential credential, String newPassword) async {
+  // Connexion Firebase Client
+  final UserCredential userCredential = await _auth.signInWithCredential(credential);
+  final User? user = userCredential.user;
+
+  // Récupération de la preuve cryptographique signée par Google
+  final String? firebaseIdToken = await user?.getIdToken(true);
+
+  if (firebaseIdToken == null) {
+    throw Exception("Impossible de récupérer le jeton Firebase");
+  }
+
+  // Appel de votre API coco_api
+  final response = await http.post(
+    Uri.parse("https://votre-domaine.railway.app/api/v1/auth/reset-password"),
+    headers: {"Content-Type": "application/json"},
+    body: jsonEncode({
+      "firebaseIdToken": firebaseIdToken,
+      "newPassword": newPassword,
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    print("Mot de passe réinitialisé avec succès !");
+  } else {
+    print("Erreur backend: ${response.body}");
+  }
+}
+```
+
+---
+
+### Guide d'intégration Frontend — React Native / React Web
+
+#### 1. Prérequis & Packages
+Pour React Native CLI :
+```bash
+npm install @react-native-firebase/app @react-native-firebase/auth
+```
+Pour le Web (React / Next.js / Vue) :
+```bash
+npm install firebase
+```
+
+#### 2. Exemple React Native
+```typescript
+import auth from '@react-native-firebase/auth';
+
+let confirmationResult: any = null;
+
+// 1. Envoyer le SMS
+export async function sendOtp(phoneNumber: string) {
+  // Ex: "+2250701020304"
+  confirmationResult = await auth().signInWithPhoneNumber(phoneNumber);
+  console.log('SMS envoyé avec succès !');
+}
+
+// 2. Valider le code à 6 chiffres et réinitialiser
+export async function resetPasswordWithOtp(smsCode: string, newPassword: string) {
+  if (!confirmationResult) {
+    throw new Error('Veuillez d’abord demander un SMS');
+  }
+
+  // Valide le code avec Firebase
+  const userCredential = await confirmationResult.confirm(smsCode);
+  
+  // Récupère l'ID Token officiel émis par Google
+  const firebaseIdToken = await userCredential.user.getIdToken();
+
+  // Appeler coco_api
+  const res = await fetch('https://votre-domaine.railway.app/api/v1/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      firebaseIdToken,
+      newPassword,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Échec de réinitialisation');
+  }
+
+  return data; // { message: "Mot de passe réinitialisé avec succès.", phone: "+2250701020304", sessionsRevoked: 1 }
+}
+```
+
+---
+
+### Référence Endpoint API Backend
+
+#### `POST /api/v1/auth/reset-password`
+Permet de réinitialiser le mot de passe d’un compte en fournissant la preuve cryptographique délivrée par Firebase Phone Auth.
+
+- **Authentification :** Publique (aucun JWT requis dans le header `Authorization`).
+- **Corps de la requête (`application/json`) :**
+
+| Champ | Type | Requis | Description | Exemple |
+|-------|------|--------|-------------|---------|
+| `firebaseIdToken` | `string` | **Oui** | Jeton JWT officiel délivré par le SDK Firebase Client après vérification du SMS. | `eyJhbGciOiJSUzI1NiIs...` |
+| `newPassword` | `string` | **Oui** | Nouveau mot de passe sécurisé (min. 6 caractères). | `Secret@2026` |
+| `phone` | `string` | Non | Numéro de téléphone optionnel pour double vérification avec le numéro du token. | `+2250701020304` |
+
+#### Exemple de Requête (cURL)
+```bash
+curl -X POST "https://votre-api.railway.app/api/v1/auth/reset-password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firebaseIdToken": "eyJhbGciOiJSUzI1NiIsImtpZCI6...",
+    "newPassword": "NouveauMotDePasse2026!"
+  }'
+```
+
+#### Réponses HTTP
+
+**200 OK — Succès**
+```json
+{
+  "message": "Mot de passe réinitialisé avec succès.",
+  "phone": "+2250701020304",
+  "sessionsRevoked": 2
+}
+```
+
+**401 Unauthorized — Jeton rejeté par Firebase**
+```json
+{
+  "statusCode": 401,
+  "message": "Jeton Firebase invalide ou expiré: Decoding Firebase ID token failed...",
+  "error": "Unauthorized"
+}
+```
+
+**404 Not Found — Numéro inexistant dans coco_api**
+```json
+{
+  "statusCode": 404,
+  "message": "Aucun compte associé au numéro \"07 01 02 03 04\".",
+  "error": "Not Found"
+}
+```
+
+---
+
+### 🧪 Numéros de Test en Développement (Sans envoyer de vrai SMS)
+
+Pour tester immédiatement sans utiliser de vrai SMS ni consommer de quota :
+1. Dans la [Console Firebase](https://console.firebase.google.com/) > Projet **`cocotaille-bca98`** > **Authentication** > **Sign-in method** > **Téléphone** :
+2. Activez les **Numéros de téléphone pour les tests** :
+   - Numéro : `+2250701020304`
+   - Code fixe : `123456`
+3. Côté Flutter / React Native, lorsque vous entrez ce numéro, Firebase ne contacte aucun opérateur et accepte immédiatement le code `123456` en délivrant un `idToken` valide !
 
 ---
 
