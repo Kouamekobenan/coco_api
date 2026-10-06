@@ -18,7 +18,10 @@ import {
 import { RegisterUserUseCase } from '../../application/usecases/register-user.usecase.js';
 import { LoginUserUseCase } from '../../application/usecases/login-user.usecase.js';
 import { GetProfileUseCase } from '../../application/usecases/get-profile.usecase.js';
-import { ResetPasswordUseCase } from '../../application/usecases/reset-password.usecase.js';
+import {
+  ResetPasswordUseCase,
+  type ResetPasswordResult,
+} from '../../application/usecases/reset-password.usecase.js';
 import { ChangePasswordUseCase } from '../../application/usecases/change-password.usecase.js';
 import { LogoutUserUseCase } from '../../application/usecases/logout-user.usecase.js';
 import { LogoutAllSessionsUseCase } from '../../application/usecases/logout-all-sessions.usecase.js';
@@ -223,13 +226,17 @@ export class AuthController {
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Réinitialiser son mot de passe',
+    summary: 'Réinitialiser son mot de passe (Firebase Phone Auth OTP)',
     description:
-      'Permet de réinitialiser le mot de passe d’un compte directement via son numéro de téléphone.',
+      'Valide le jeton Firebase (OTP SMS gratuit validé côté client), vérifie le compte associé, met à jour le mot de passe et révoque toutes les sessions actives.',
   })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Mot de passe réinitialisé avec succès.',
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: 'Jeton Firebase invalide, expiré ou numéro incohérent.',
   })
   @ApiResponse({
     status: HttpStatus.NOT_FOUND,
@@ -237,7 +244,7 @@ export class AuthController {
   })
   public async resetPassword(
     @Body() dto: ResetPasswordDto,
-  ): Promise<{ message: string }> {
+  ): Promise<ResetPasswordResult> {
     return this.resetPasswordUseCase.execute(dto);
   }
 

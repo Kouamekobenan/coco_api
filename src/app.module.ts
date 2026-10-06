@@ -7,6 +7,7 @@ import { AppService } from './app.service.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { AppQueueModule } from './common/queue/app-queue.module.js';
 import { LockModule } from './common/lock/lock.module.js';
+import { FirebaseModule } from './common/firebase/firebase.module.js';
 import { AuthModule } from './module/auth/auth.module.js';
 import { SalonModule } from './module/salon/salon.module.js';
 import { ServiceModule } from './module/service/service.module.js';
@@ -43,6 +44,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     HealthModule,
     AppQueueModule,
     LockModule,
+    FirebaseModule,
     PrismaModule,
     AuthModule,
     SalonModule,
