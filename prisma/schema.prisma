@@ -319,6 +319,7 @@ model Salon {
   loyaltyAccounts  LoyaltyAccount[]
   customerNotes    CustomerNote[]
   subscriptions    SalonSubscription[]
+  billingSubscription SalonBillingSubscription?
   notifications    Notification[]
 
   @@index([status, universe])
@@ -965,3 +966,83 @@ model SalonSubscription {
   @@index([userId])
   @@index([salonId])
 }
+
+// =============================================================================
+// MODULE 12: SALON BILLING & SAAS SUBSCRIPTIONS
+// =============================================================================
+
+enum PlanTier {
+  FREE
+  STARTER
+  BUSINESS_PRO
+}
+
+enum SalonSubscriptionStatus {
+  TRIALING   // Période d'essai gratuit (1 mois)
+  ACTIVE     // Abonnement payant actif
+  PAST_DUE   // Paiement en retard
+  EXPIRED    // Expiré (salon suspendu)
+  CANCELED   // Annulé
+}
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+model SalonPlan {
+  id           String      @id @default(uuid())
+  tier         PlanTier    @unique
+  name         String      // "Gratuit", "Starter", "Business Pro"
+  priceMonth   Float       // 0 pour FREE, montant XOF pour les autres
+  priceYear    Float?
+  maxStaff     Int?        // 2 pour FREE, 5 pour STARTER, null = illimité
+  maxServices  Int?        // 5 pour FREE, 25 pour STARTER, null = illimité
+  enableQueue  Boolean     @default(true)
+  features     Json?
+  isActive     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+
+  subscriptions SalonBillingSubscription[]
+}
+
+model SalonBillingSubscription {
+  id           String                  @id @default(uuid())
+  salonId      String                  @unique
+  planId       String
+  status       SalonSubscriptionStatus @default(TRIALING)
+  startDate    DateTime                @default(now())
+  endDate      DateTime                // Date de fin (ex: 30 jours après création pour FREE)
+  trialEndsAt  DateTime?               // Date de fin de l'essai gratuit
+  autoRenew    Boolean                 @default(false)
+
+  salon        Salon                   @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  plan         SalonPlan               @relation(fields: [planId], references: [id])
+  payments     SubscriptionPayment[]
+
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@index([salonId, status])
+  @@index([endDate])
+}
+
+model SubscriptionPayment {
+  id             String                   @id @default(uuid())
+  subscriptionId String
+  salonId        String
+  amount         Float
+  currency       String                   @default("XOF")
+  provider       PaymentProvider          // WAVE, ORANGE_MONEY, MTN_MOMO, MOOV_MONEY
+  status         PaymentStatus            @default(PENDING)
+  providerTxId   String?
+  billingPeriod  BillingPeriod            @default(MONTHLY)
+  paidAt         DateTime?
+  createdAt      DateTime                 @default(now())
+
+  subscription   SalonBillingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@index([salonId])
+}
+

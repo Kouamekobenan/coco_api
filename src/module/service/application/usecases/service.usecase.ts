@@ -11,6 +11,7 @@ import { ServiceEntity } from '../../domain/entities/service.entity.js';
 import { SalonNotFoundException } from '../../../salon/domain/exceptions/salon-domain.exception.js';
 import { ServiceNotFoundException } from '../../domain/exceptions/service-domain.exception.js';
 import { ServiceDtoMapper } from '../dtos/service-dto.mapper.js';
+import { VerifySalonQuotasService } from '../../../salon-billing/application/usecases/verify-salon-quotas.service.js';
 
 @Injectable()
 export class CreateServiceUseCase {
@@ -19,6 +20,7 @@ export class CreateServiceUseCase {
     private readonly serviceRepository: IServiceRepository,
     @Inject(SALON_REPOSITORY)
     private readonly salonRepository: ISalonRepository,
+    private readonly verifySalonQuotasService: VerifySalonQuotasService,
   ) {}
 
   public async execute(salonId: string, dto: CreateServiceDto): Promise<ServiceResponseDto> {
@@ -26,6 +28,9 @@ export class CreateServiceUseCase {
     if (!salon) {
       throw new SalonNotFoundException(salonId);
     }
+
+    // Vérification du quota de prestations autorisé par l'abonnement du salon
+    await this.verifySalonQuotasService.assertCanAddService(salonId);
 
     const service = ServiceEntity.create({
       id: randomUUID(),

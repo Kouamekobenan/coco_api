@@ -12,6 +12,7 @@ import { StaffEntity } from '../../domain/entities/staff.entity.js';
 import { SalonNotFoundException } from '../../../salon/domain/exceptions/salon-domain.exception.js';
 import { StaffNotFoundException } from '../../domain/exceptions/staff-domain.exception.js';
 import { StaffDtoMapper } from '../dtos/staff-dto.mapper.js';
+import { VerifySalonQuotasService } from '../../../salon-billing/application/usecases/verify-salon-quotas.service.js';
 import 'multer';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class CreateStaffUseCase {
     private readonly staffRepository: IStaffRepository,
     @Inject(SALON_REPOSITORY)
     private readonly salonRepository: ISalonRepository,
+    private readonly verifySalonQuotasService: VerifySalonQuotasService,
     @Optional()
     @Inject(FileUploaderName)
     private readonly fileUploader?: FileUploader,
@@ -35,6 +37,9 @@ export class CreateStaffUseCase {
     if (!salon) {
       throw new SalonNotFoundException(salonId);
     }
+
+    // Vérification du quota de personnel autorisé par l'abonnement du salon
+    await this.verifySalonQuotasService.assertCanAddStaff(salonId);
 
     let avatarUrl = dto.avatarUrl;
     if (this.fileUploader && avatarFile) {

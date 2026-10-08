@@ -4,6 +4,7 @@ import { SalonModule } from '../salon/salon.module.js';
 import { ServiceModule } from '../service/service.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { CloudinaryModule } from '../../common/cloudinary/cloudinary.module.js';
+import { SalonBillingModule } from '../salon-billing/salon-billing.module.js';
 
 // Domain Tokens
 import { STAFF_REPOSITORY } from './domain/repositories/staff.repository.interface.js';
@@ -58,7 +59,7 @@ import { StaffScheduleController } from './presentation/controllers/staff-schedu
 import { ResourcesController } from './presentation/controllers/resources.controller.js';
 
 @Module({
-  imports: [PrismaModule, SalonModule, ServiceModule, AuthModule, CloudinaryModule],
+  imports: [PrismaModule, SalonModule, ServiceModule, AuthModule, CloudinaryModule, SalonBillingModule],
   controllers: [
     StaffController,
     StaffServicesController,
