@@ -59,6 +59,41 @@ export class PrismaSalonRepository implements ISalonRepository {
           delayAlertThresholdMin: 20,
         },
       });
+
+      // Attribution automatique du Pack Free pour 1 mois (30 jours)
+      let freePlan = await tx.salonPlan.findUnique({
+        where: { tier: 'FREE' },
+      });
+      if (!freePlan) {
+        freePlan = await tx.salonPlan.create({
+          data: {
+            tier: 'FREE',
+            name: 'Gratuit (Pack Découverte 1 mois)',
+            priceMonth: 0,
+            priceYear: 0,
+            maxStaff: 2,
+            maxServices: 5,
+            enableQueue: true,
+            features: { description: 'Pack gratuit valide 30 jours, 2 coiffeurs et 5 prestations max.' },
+            isActive: true,
+          },
+        });
+      }
+
+      const now = new Date();
+      const trialEndDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+      await tx.salonBillingSubscription.create({
+        data: {
+          salonId: salon.getId(),
+          planId: freePlan.id,
+          status: 'TRIALING',
+          startDate: now,
+          endDate: trialEndDate,
+          trialEndsAt: trialEndDate,
+          autoRenew: false,
+        },
+      });
     });
   }
 
