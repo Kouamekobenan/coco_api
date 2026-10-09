@@ -3,17 +3,37 @@ import { NotificationEventListener } from './notification-event.listener.js';
 import { SendNotificationUseCase } from '../../application/usecases/send-notification.usecase.js';
 import { QueueTicketCalledEvent } from '../../../queue/domain/events/queue-ticket.events.js';
 import { BookingDepositConfirmedEvent } from '../../../booking/domain/events/booking.events.js';
+import { UserRegisteredEvent } from '../../../auth/domain/events/auth.events.js';
+import { PrismaService } from '../../../../prisma/prisma.service.js';
+import { NotificationChannel } from '@prisma/client';
 
 describe('NotificationEventListener', () => {
   let listener: NotificationEventListener;
   let mockSendNotificationUseCase: SendNotificationUseCase;
+  let mockPrisma: {
+    user: {
+      findMany: ReturnType<typeof vi.fn>;
+    };
+  };
 
   beforeEach(() => {
     mockSendNotificationUseCase = {
       execute: vi.fn().mockResolvedValue([]),
     } as unknown as SendNotificationUseCase;
 
-    listener = new NotificationEventListener(mockSendNotificationUseCase);
+    mockPrisma = {
+      user: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'admin-1', firstName: 'SuperAdmin', phone: '+2250700000001' },
+          { id: 'admin-2', firstName: 'Admin2', phone: '+2250700000002' },
+        ]),
+      },
+    };
+
+    listener = new NotificationEventListener(
+      mockSendNotificationUseCase,
+      mockPrisma as unknown as PrismaService,
+    );
   });
 
   it('doit envoyer une notification lorsque le ticket est appelé', async () => {
@@ -111,4 +131,69 @@ describe('NotificationEventListener', () => {
 
     expect(mockSendNotificationUseCase.execute).not.toHaveBeenCalled();
   });
+
+  it('doit envoyer une notification Push et In-App à tous les administrateurs lors de la création d un compte client', async () => {
+    const event = new UserRegisteredEvent(
+      'user-new-client',
+      '+2250701020304',
+      '07 01 02 03 04',
+      'client@coco.ci',
+      'Awa',
+      'Kouassi',
+      'Awa Kouassi',
+      'COCOMOUSSO',
+      new Date(),
+    );
+
+    await listener.handleUserRegistered(event);
+
+    // Vérifie que les 2 admins ont reçu une notification
+    expect(mockSendNotificationUseCase.execute).toHaveBeenCalledTimes(2);
+
+    expect(mockSendNotificationUseCase.execute).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        userId: 'admin-1',
+        title: 'Nouveau compte client créé 👤',
+        body: expect.stringContaining('Awa Kouassi'),
+        channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH],
+        data: expect.objectContaining({
+          type: 'USER_REGISTERED',
+          clientId: 'user-new-client',
+          clientPhone: '+2250701020304',
+        }),
+      }),
+    );
+
+    expect(mockSendNotificationUseCase.execute).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        userId: 'admin-2',
+        title: 'Nouveau compte client créé 👤',
+        body: expect.stringContaining('Awa Kouassi'),
+        channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH],
+      }),
+    );
+  });
+
+  it('ne doit rien envoyer si aucun administrateur n est actif', async () => {
+    mockPrisma.user.findMany.mockResolvedValueOnce([]);
+
+    const event = new UserRegisteredEvent(
+      'user-new-client',
+      '+2250701020304',
+      '07 01 02 03 04',
+      null,
+      null,
+      null,
+      null,
+      'COCOMOUSSO',
+      new Date(),
+    );
+
+    await listener.handleUserRegistered(event);
+
+    expect(mockSendNotificationUseCase.execute).not.toHaveBeenCalled();
+  });
 });
+

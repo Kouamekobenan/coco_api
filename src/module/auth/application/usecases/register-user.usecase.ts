@@ -1,4 +1,5 @@
 import { Inject, Injectable, Optional } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { randomUUID } from 'crypto';
 import type { IUserRepository } from '../../domain/repositories/user.repository.interface.js';
 import { USER_REPOSITORY } from '../../domain/repositories/user.repository.interface.js';
@@ -16,6 +17,10 @@ import {
   UserAlreadyExistsException,
   UserEmailAlreadyExistsException,
 } from '../../domain/exceptions/domain.exception.js';
+import {
+  AUTH_EVENT_PATTERNS,
+  UserRegisteredEvent,
+} from '../../domain/events/auth.events.js';
 import { RegisterDto } from '../dtos/register.dto.js';
 import { AuthResponseDto } from '../dtos/auth-response.dto.js';
 import { UserResponseDto } from '../dtos/user-response.dto.js';
@@ -33,6 +38,8 @@ export class RegisterUserUseCase {
     @Optional()
     @Inject(SESSION_REPOSITORY)
     private readonly sessionRepository?: ISessionRepository,
+    @Optional()
+    private readonly eventEmitter?: EventEmitter2,
   ) {}
 
   public async execute(dto: RegisterDto, metadata?: LoginMetadata): Promise<AuthResponseDto> {
@@ -95,7 +102,25 @@ export class RegisterUserUseCase {
       await this.sessionRepository.save(session);
     }
 
-    // 8. Mapping réponse
+    // 8. Émission de l'événement de création de compte pour les écouteurs (notifications admin, etc.)
+    if (this.eventEmitter) {
+      this.eventEmitter.emit(
+        AUTH_EVENT_PATTERNS.USER_REGISTERED,
+        new UserRegisteredEvent(
+          user.getId(),
+          user.getPhone().getValue(),
+          user.getPhone().getNationalFormat(),
+          user.getEmail(),
+          user.getFirstName(),
+          user.getLastName(),
+          user.getFullName(),
+          user.getDefaultUniverse(),
+          user.getCreatedAt(),
+        ),
+      );
+    }
+
+    // 9. Mapping réponse
     return {
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,

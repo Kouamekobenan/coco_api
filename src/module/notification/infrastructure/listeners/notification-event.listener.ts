@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
+import { NotificationChannel } from '@prisma/client';
 import {
   QUEUE_EVENT_PATTERNS,
   QueueTicketCalledEvent,
@@ -17,13 +18,21 @@ import {
   BookingHoldExpiredEvent,
   BookingReminderEvent,
 } from '../../../booking/domain/events/booking.events.js';
+import {
+  AUTH_EVENT_PATTERNS,
+  UserRegisteredEvent,
+} from '../../../auth/domain/events/auth.events.js';
 import { SendNotificationUseCase } from '../../application/usecases/send-notification.usecase.js';
+import { PrismaService } from '../../../../prisma/prisma.service.js';
 
 @Injectable()
 export class NotificationEventListener {
   private readonly logger = new Logger(NotificationEventListener.name);
 
-  constructor(private readonly sendNotificationUseCase: SendNotificationUseCase) {}
+  constructor(
+    private readonly sendNotificationUseCase: SendNotificationUseCase,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @OnEvent(QUEUE_EVENT_PATTERNS.TICKET_CREATED, { async: true })
   public async handleTicketCreated(event: QueueTicketCreatedEvent): Promise<void> {
@@ -293,6 +302,66 @@ export class NotificationEventListener {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       this.logger.error(`Erreur notification BOOKING_REMINDER: ${msg}`);
+    }
+  }
+
+  @OnEvent(AUTH_EVENT_PATTERNS.USER_REGISTERED, { async: true })
+  public async handleUserRegistered(event: UserRegisteredEvent): Promise<void> {
+    this.logger.log(
+      `[NotificationEventListener] Réception USER_REGISTERED pour le client: ${event.userId} (${event.nationalPhone})`,
+    );
+
+    try {
+      // 1. Récupération de tous les super-administrateurs actifs de la plateforme
+      const admins = await this.prisma.user.findMany({
+        where: {
+          isSuperAdmin: true,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          firstName: true,
+          phone: true,
+        },
+      });
+
+      if (admins.length === 0) {
+        this.logger.warn(
+          `[NotificationEventListener] Aucun super-administrateur actif trouvé pour notifier la création du compte client: ${event.userId}`,
+        );
+        return;
+      }
+
+      const clientDisplayName =
+        event.fullName ||
+        [event.firstName, event.lastName].filter(Boolean).join(' ').trim() ||
+        event.nationalPhone;
+
+      // 2. Notification Push et In-App à chaque administrateur
+      for (const admin of admins) {
+        await this.sendNotificationUseCase.execute({
+          userId: admin.id,
+          title: 'Nouveau compte client créé 👤',
+          body: `Le client ${clientDisplayName} (${event.nationalPhone}) vient de créer son compte sur Coco.`,
+          channels: [NotificationChannel.IN_APP, NotificationChannel.PUSH],
+          data: {
+            type: 'USER_REGISTERED',
+            clientId: event.userId,
+            clientPhone: event.phone,
+            clientNationalPhone: event.nationalPhone,
+            clientEmail: event.email ?? '',
+            universe: event.universe,
+            registeredAt: event.createdAt.toISOString(),
+          },
+        });
+      }
+
+      this.logger.log(
+        `[NotificationEventListener] Alertes PUSH & IN_APP envoyées à ${admins.length} administrateur(s) pour le nouveau client ${event.userId}.`,
+      );
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(`Erreur notification USER_REGISTERED: ${msg}`);
     }
   }
 }
