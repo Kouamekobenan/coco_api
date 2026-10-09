@@ -236,6 +236,16 @@ export class PrismaSalonRepository implements ISalonRepository {
         ? Prisma.sql`AND s.status = ${options.status}::"SalonStatus"`
         : Prisma.empty;
 
+    const styleClause =
+      options?.styleId != null
+        ? Prisma.sql`AND EXISTS (
+            SELECT 1 FROM "Service" serv
+            WHERE serv."salonId" = s.id
+              AND serv."styleId" = ${options.styleId}
+              AND serv."isActive" = true
+          )`
+        : Prisma.empty;
+
     // ---------------------------------------------------------------
     // Requête PostGIS :
     //   ST_DWithin  → filtre rapide via index GiST (rayon en mètres)
@@ -262,6 +272,7 @@ export class PrismaSalonRepository implements ISalonRepository {
         )
         ${universeClause}
         ${statusClause}
+        ${styleClause}
       ORDER BY distance_km ASC
       LIMIT ${limit}
     `;

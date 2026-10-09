@@ -26,6 +26,8 @@ import {
 import { CreateStyleDto, UpdateStyleDto } from '../../application/dtos/create-style.dto.js';
 import { StyleQueryDto, StyleResponseDto } from '../../application/dtos/style-query.dto.js';
 import { PaginatedStylesResponseDto } from '../../application/dtos/paginated-styles-response.dto.js';
+import { NearbySalonsByStyleQueryDto } from '../../application/dtos/nearby-salons-by-style-query.dto.js';
+import { NearbySalonsResponseDto } from '../../../salon/application/dtos/salon-response.dto.js';
 import {
   CreateStyleUseCase,
   DeleteStyleUseCase,
@@ -35,6 +37,7 @@ import {
   UpdateStyleUseCase,
   UploadStyleImageUseCase,
 } from '../../application/usecases/style.usecase.js';
+import { GetNearbySalonsByStyleUseCase } from '../../application/usecases/get-nearby-salons-by-style.usecase.js';
 import { Public } from '../../../auth/infrastructure/security/public.decorator.js';
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
 import 'multer';
@@ -47,6 +50,7 @@ export class StylesController {
     private readonly getStylesUseCase: GetStylesUseCase,
     private readonly getStyleByIdUseCase: GetStyleByIdUseCase,
     private readonly getStyleBySlugUseCase: GetStyleBySlugUseCase,
+    private readonly getNearbySalonsByStyleUseCase: GetNearbySalonsByStyleUseCase,
     private readonly updateStyleUseCase: UpdateStyleUseCase,
     private readonly uploadStyleImageUseCase: UploadStyleImageUseCase,
     private readonly deleteStyleUseCase: DeleteStyleUseCase,
@@ -144,6 +148,35 @@ export class StylesController {
   })
   public async findBySlug(@Param('slug') slug: string): Promise<StyleResponseDto> {
     return this.getStyleBySlugUseCase.execute(slug);
+  }
+
+  @Public()
+  @Get(':id/nearby-salons')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Trouver les salons proposant ce style à proximité géographique (GPS)',
+    description:
+      'Retourne les salons actifs proposant au moins une prestation liée à ce style de coiffure dans un rayon donné autour des coordonnées GPS fournies, triés par distance croissante. Le paramètre :id accepte soit l\'UUID, soit le slug du style.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Identifiant UUID ou slug du style de coiffure',
+    example: 'nappy-braids',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Liste des salons à proximité proposant ce style avec leur distance en kilomètres.',
+    type: [NearbySalonsResponseDto],
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: 'Style de coiffure introuvable.',
+  })
+  public async findNearbySalons(
+    @Param('id') id: string,
+    @Query() query: NearbySalonsByStyleQueryDto,
+  ): Promise<NearbySalonsResponseDto[]> {
+    return this.getNearbySalonsByStyleUseCase.execute(id, query);
   }
 
   @Public()

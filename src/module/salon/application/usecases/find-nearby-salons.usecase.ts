@@ -24,6 +24,7 @@ export class FindNearbySalonsUseCase {
         universe: query.universe,
         status: 'ACTIVE',
         limit,
+        styleId: query.styleId,
       },
     );
 
