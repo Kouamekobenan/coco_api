@@ -24,6 +24,9 @@ describe('RegisterUserUseCase', () => {
     verifyAccessToken: ReturnType<typeof vi.fn>;
     verifyRefreshToken: ReturnType<typeof vi.fn>;
   };
+  let mockEventEmitter: {
+    emit: ReturnType<typeof vi.fn>;
+  };
 
   beforeEach(() => {
     mockUserRepo = {
@@ -44,11 +47,16 @@ describe('RegisterUserUseCase', () => {
       verifyAccessToken: vi.fn(),
       verifyRefreshToken: vi.fn(),
     };
+    mockEventEmitter = {
+      emit: vi.fn(),
+    };
 
     useCase = new RegisterUserUseCase(
       mockUserRepo as unknown as IUserRepository,
       mockPasswordHasher as unknown as IPasswordHasher,
       mockTokenService as unknown as ITokenService,
+      undefined,
+      mockEventEmitter as unknown as any,
     );
   });
 
@@ -66,6 +74,15 @@ describe('RegisterUserUseCase', () => {
     expect(mockUserRepo.existsByPhone).toHaveBeenCalled();
     expect(mockUserRepo.existsByEmail).toHaveBeenCalledWith('test@example.ci');
     expect(mockUserRepo.save).toHaveBeenCalledOnce();
+    expect(mockEventEmitter.emit).toHaveBeenCalledWith(
+      'auth.user.registered',
+      expect.objectContaining({
+        phone: '+2250701020304',
+        email: 'test@example.ci',
+        firstName: 'Awa',
+        lastName: 'Kouassi',
+      }),
+    );
     expect(result.accessToken).toBe('jwt-access-token');
     expect(result.user.email).toBe('test@example.ci');
     expect(result.user.firstName).toBe('Awa');
