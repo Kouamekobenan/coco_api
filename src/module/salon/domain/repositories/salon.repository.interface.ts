@@ -22,6 +22,7 @@ export interface SalonNearbyFilterOptions {
   universe?: AppUniverseType;
   status?: SalonStatusType;
   limit?: number;
+  styleId?: string;
 }
 
 export interface NearbySalonResult {

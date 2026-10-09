@@ -1,11 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, Max, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsNumber, IsOptional, Max, Min } from 'class-validator';
 
-export class NearbySalonsQueryDto {
+export class NearbySalonsByStyleQueryDto {
   @ApiProperty({
     example: 5.3599,
-    description: 'Latitude GPS de l\'utilisateur',
+    description: "Latitude GPS de l'utilisateur",
   })
   @Type(() => Number)
   @IsNumber()
@@ -16,7 +16,7 @@ export class NearbySalonsQueryDto {
 
   @ApiProperty({
     example: -4.0083,
-    description: 'Longitude GPS de l\'utilisateur',
+    description: "Longitude GPS de l'utilisateur",
   })
   @Type(() => Number)
   @IsNumber()
@@ -38,17 +38,9 @@ export class NearbySalonsQueryDto {
   radiusKm?: number = 10;
 
   @ApiPropertyOptional({
-    enum: ['COCOMOUSSO', 'COCOTAILLE', 'MIXED'],
-    description: 'Filtrer par univers Coco',
-  })
-  @IsEnum(['COCOMOUSSO', 'COCOTAILLE', 'MIXED'])
-  @IsOptional()
-  universe?: 'COCOMOUSSO' | 'COCOTAILLE' | 'MIXED';
-
-  @ApiPropertyOptional({
     example: 20,
     default: 20,
-    description: 'Nombre maximal de salons à retourner',
+    description: 'Nombre maximal de salons à retourner (max 50)',
   })
   @Type(() => Number)
   @IsInt()
@@ -56,11 +48,4 @@ export class NearbySalonsQueryDto {
   @Max(50)
   @IsOptional()
   limit?: number = 20;
-
-  @ApiPropertyOptional({
-    example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-    description: 'Filtrer par style de coiffure spécifique (UUID)',
-  })
-  @IsOptional()
-  styleId?: string;
 }

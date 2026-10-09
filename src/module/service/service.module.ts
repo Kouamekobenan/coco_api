@@ -23,6 +23,7 @@ import {
   UpdateStyleUseCase,
   UploadStyleImageUseCase,
 } from './application/usecases/style.usecase.js';
+import { GetNearbySalonsByStyleUseCase } from './application/usecases/get-nearby-salons-by-style.usecase.js';
 
 // Application Use Cases - Services
 import {
@@ -67,6 +68,7 @@ import { ServiceVariantsController } from './presentation/controllers/service-va
     GetStylesUseCase,
     GetStyleByIdUseCase,
     GetStyleBySlugUseCase,
+    GetNearbySalonsByStyleUseCase,
     UpdateStyleUseCase,
     UploadStyleImageUseCase,
     DeleteStyleUseCase,
@@ -91,6 +93,7 @@ import { ServiceVariantsController } from './presentation/controllers/service-va
     STYLE_REPOSITORY,
     GetServiceByIdUseCase,
     GetServiceVariantByIdUseCase,
+    GetNearbySalonsByStyleUseCase,
     UploadStyleImageUseCase,
   ],
 })
