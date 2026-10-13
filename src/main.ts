@@ -25,8 +25,26 @@ async function bootstrap() {
   app.use(compression());
 
   // ── CORS (ajustez les origines en production) ─────────────────────────────
+  const configuredOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map((origin) => origin.trim())
+    : [
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://localhost:5173',
+        'https://cocotaille-admin.vercel.app',
+       
+      ];
+
+  const allowedOrigins = Array.from(
+    new Set([
+      'http://localhost:8081',
+       'https://cocotaille-admin.vercel.app/',
+      ...configuredOrigins,
+    ]),
+  );
+
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? '*',
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Authorization', 'Content-Type', 'Accept'],
     credentials: true,
