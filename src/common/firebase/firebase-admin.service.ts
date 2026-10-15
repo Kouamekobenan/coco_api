@@ -18,7 +18,6 @@ export class FirebaseAdminService implements OnModuleInit {
   public onModuleInit(): void {
     this.initialize();
   }
-
   public initialize(): void {
     if (getApps().length > 0) {
       this.firebaseApp = getApps()[0];

@@ -182,6 +182,8 @@ model User {
   devices             UserDevice[]
   bookings            Booking[]
   reviews             Review[]
+  clientReviewsGiven    ClientReview[] @relation("ClientReviewAuthor")
+  clientReviewsReceived ClientReview[] @relation("ClientReviewTarget")
   salonCustomers      SalonCustomer[]
   loyaltyAccounts     LoyaltyAccount[]
   customerNotes       CustomerNote[]
@@ -314,6 +316,7 @@ model Salon {
   bookings         Booking[]
   queueTickets     QueueTicket[]
   reviews          Review[]
+  clientReviews    ClientReview[]
   payments         Payment[]
   ledgerEntries    AccountingLedger[]
   loyaltyAccounts  LoyaltyAccount[]
@@ -436,6 +439,27 @@ model Review {
 // =============================================================================
 // MODULE 04: CATALOGUE & SERVICES
 // =============================================================================
+
+// Avis d'un propriétaire de salon sur un client (visible par les autres salons)
+model ClientReview {
+  id        String   @id @default(uuid())
+  bookingId String   @unique // 1 seul avis client par réservation COMPLETED
+  salonId   String
+  authorId  String   // Propriétaire du salon auteur de l'avis
+  clientId  String   // Client noté
+  rating    Int      // 1 à 5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  salon   Salon   @relation(fields: [salonId], references: [id], onDelete: Cascade)
+  author  User    @relation("ClientReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  client  User    @relation("ClientReviewTarget", fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@index([salonId])
+}
 
 model Style {
   id          String      @id @default(uuid())
@@ -563,6 +587,7 @@ model Booking {
   payments      Payment[]
   queueTicket   QueueTicket?
   review        Review?
+  clientReview  ClientReview?
 
   @@index([salonId, status])
   @@index([staffId, scheduledStart])
