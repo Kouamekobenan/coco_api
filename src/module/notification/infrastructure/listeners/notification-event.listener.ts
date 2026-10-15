@@ -22,6 +22,11 @@ import {
   AUTH_EVENT_PATTERNS,
   UserRegisteredEvent,
 } from '../../../auth/domain/events/auth.events.js';
+import {
+  REVIEW_EVENT_PATTERNS,
+  SalonReviewedEvent,
+  ClientReviewedEvent,
+} from '../../../review/domain/events/review.events.js';
 import { SendNotificationUseCase } from '../../application/usecases/send-notification.usecase.js';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
 
@@ -302,6 +307,67 @@ export class NotificationEventListener {
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       this.logger.error(`Erreur notification BOOKING_REMINDER: ${msg}`);
+    }
+  }
+
+  @OnEvent(REVIEW_EVENT_PATTERNS.SALON_REVIEWED, { async: true })
+  public async handleSalonReviewed(event: SalonReviewedEvent): Promise<void> {
+    this.logger.log(
+      `[NotificationEventListener] Nouvel avis ${event.reviewId} (${event.rating}/5) sur le salon ${event.salonId}`,
+    );
+
+    try {
+      const owners = await this.prisma.salonMember.findMany({
+        where: { salonId: event.salonId, role: 'SALON_OWNER', isActive: true },
+        select: { userId: true },
+      });
+
+      for (const owner of owners) {
+        await this.sendNotificationUseCase.execute({
+          userId: owner.userId,
+          salonId: event.salonId,
+          title: `Nouvel avis client ${event.rating}/5 ⭐`,
+          body: event.comment
+            ? `Un client a noté votre salon : « ${event.comment} »`
+            : 'Un client vient de noter votre salon.',
+          data: {
+            type: 'SALON_REVIEWED',
+            reviewId: event.reviewId,
+            bookingId: event.bookingId,
+            rating: event.rating,
+          },
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(`Erreur notification SALON_REVIEWED: ${msg}`);
+    }
+  }
+
+  @OnEvent(REVIEW_EVENT_PATTERNS.CLIENT_REVIEWED, { async: true })
+  public async handleClientReviewed(event: ClientReviewedEvent): Promise<void> {
+    this.logger.log(
+      `[NotificationEventListener] Nouvel avis ${event.reviewId} (${event.rating}/5) sur le client ${event.clientId}`,
+    );
+
+    try {
+      await this.sendNotificationUseCase.execute({
+        userId: event.clientId,
+        salonId: event.salonId,
+        title: `Le salon vous a laissé une note ${event.rating}/5 ⭐`,
+        body: event.comment
+          ? `Avis du salon : « ${event.comment} »`
+          : 'Le salon vient de vous laisser une note suite à votre visite.',
+        data: {
+          type: 'CLIENT_REVIEWED',
+          reviewId: event.reviewId,
+          bookingId: event.bookingId,
+          rating: event.rating,
+        },
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(`Erreur notification CLIENT_REVIEWED: ${msg}`);
     }
   }
 

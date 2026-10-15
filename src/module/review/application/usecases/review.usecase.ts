@@ -6,12 +6,21 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { BookingStatus, SalonRole } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../../../prisma/prisma.service.js';
 import { CreateReviewDto } from '../dtos/create-review.dto.js';
+import {
+  ClientReviewedEvent,
+  REVIEW_EVENT_PATTERNS,
+  SalonReviewedEvent,
+} from '../../domain/events/review.events.js';
 
 @Injectable()
 export class ReviewUseCase {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   /** Client -> Salon : le client note le salon après une réservation terminée. */
   public async reviewSalon(
@@ -33,7 +42,7 @@ export class ReviewUseCase {
       throw new ConflictException('Vous avez déjà noté ce salon pour cette réservation.');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const review = await tx.review.create({
         data: {
           salonId,
@@ -59,6 +68,20 @@ export class ReviewUseCase {
 
       return review;
     });
+
+    this.eventEmitter.emit(
+      REVIEW_EVENT_PATTERNS.SALON_REVIEWED,
+      new SalonReviewedEvent(
+        created.id,
+        salonId,
+        bookingId,
+        userId,
+        created.rating,
+        created.comment,
+      ),
+    );
+
+    return created;
   }
 
   /** Propriétaire -> Client : le propriétaire du salon note le client. */
@@ -82,7 +105,7 @@ export class ReviewUseCase {
       throw new ConflictException('Ce client a déjà été noté pour cette réservation.');
     }
 
-    return this.prisma.clientReview.create({
+    const created = await this.prisma.clientReview.create({
       data: {
         bookingId,
         salonId,
@@ -92,6 +115,20 @@ export class ReviewUseCase {
         comment: dto.comment,
       },
     });
+
+    this.eventEmitter.emit(
+      REVIEW_EVENT_PATTERNS.CLIENT_REVIEWED,
+      new ClientReviewedEvent(
+        created.id,
+        salonId,
+        bookingId,
+        booking.userId,
+        created.rating,
+        created.comment,
+      ),
+    );
+
+    return created;
   }
 
   /** Avis laissés sur un client : visible par tous les propriétaires/membres de salons. */
