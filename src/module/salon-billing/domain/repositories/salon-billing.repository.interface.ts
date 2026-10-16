@@ -20,6 +20,11 @@ export interface ISalonBillingRepository {
   findPlanByTier(tier: PlanTier): Promise<SalonPlanEntity | null>;
   findPlanById(id: string): Promise<SalonPlanEntity | null>;
   findAllActivePlans(): Promise<SalonPlanEntity[]>;
+  updatePlanPrice(
+    tier: PlanTier,
+    priceMonth: number,
+    priceYear?: number,
+  ): Promise<SalonPlanEntity>;
 
   findSubscriptionBySalonId(salonId: string): Promise<SalonBillingSubscriptionEntity | null>;
   saveSubscription(subscription: SalonBillingSubscriptionEntity): Promise<SalonBillingSubscriptionEntity>;

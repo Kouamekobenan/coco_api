@@ -14,6 +14,7 @@ import { CreateSalonUseCase } from './application/usecases/create-salon.usecase.
 import { GetSalonByIdUseCase } from './application/usecases/get-salon-by-id.usecase.js';
 import { GetSalonBySlugUseCase } from './application/usecases/get-salon-by-slug.usecase.js';
 import { SearchSalonsUseCase } from './application/usecases/search-salons.usecase.js';
+import { GetMySalonsUseCase } from './application/usecases/get-my-salons.usecase.js';
 import { FindNearbySalonsUseCase } from './application/usecases/find-nearby-salons.usecase.js';
 import { UpdateSalonUseCase } from './application/usecases/update-salon.usecase.js';
 import { UpdateSalonStatusUseCase } from './application/usecases/update-salon-status.usecase.js';
@@ -83,6 +84,7 @@ import { SalonPromotionsController } from './presentation/controllers/salon-prom
     GetSalonByIdUseCase,
     GetSalonBySlugUseCase,
     SearchSalonsUseCase,
+    GetMySalonsUseCase,
     FindNearbySalonsUseCase,
     UpdateSalonUseCase,
     UpdateSalonStatusUseCase,

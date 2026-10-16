@@ -216,6 +216,18 @@ export class PrismaSalonRepository implements ISalonRepository {
     return { salons, total };
   }
 
+  public async findAllByOwnerUserId(userId: string): Promise<SalonEntity[]> {
+    const rawSalons = await this.prisma.salon.findMany({
+      where: {
+        members: {
+          some: { userId, role: SalonRole.SALON_OWNER, isActive: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return rawSalons.map((s) => SalonMapper.toDomain(s));
+  }
+
   public async findNearby(
     lat: number,
     lng: number,

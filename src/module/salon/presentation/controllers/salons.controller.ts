@@ -37,6 +37,7 @@ import { CreateSalonUseCase } from '../../application/usecases/create-salon.usec
 import { GetSalonByIdUseCase } from '../../application/usecases/get-salon-by-id.usecase.js';
 import { GetSalonBySlugUseCase } from '../../application/usecases/get-salon-by-slug.usecase.js';
 import { SearchSalonsUseCase } from '../../application/usecases/search-salons.usecase.js';
+import { GetMySalonsUseCase } from '../../application/usecases/get-my-salons.usecase.js';
 import { FindNearbySalonsUseCase } from '../../application/usecases/find-nearby-salons.usecase.js';
 import { UpdateSalonUseCase } from '../../application/usecases/update-salon.usecase.js';
 import { UpdateSalonStatusUseCase } from '../../application/usecases/update-salon-status.usecase.js';
@@ -62,6 +63,7 @@ export class SalonsController {
     private readonly getSalonByIdUseCase: GetSalonByIdUseCase,
     private readonly getSalonBySlugUseCase: GetSalonBySlugUseCase,
     private readonly searchSalonsUseCase: SearchSalonsUseCase,
+    private readonly getMySalonsUseCase: GetMySalonsUseCase,
     private readonly findNearbySalonsUseCase: FindNearbySalonsUseCase,
     private readonly updateSalonUseCase: UpdateSalonUseCase,
     private readonly updateSalonStatusUseCase: UpdateSalonStatusUseCase,
@@ -210,6 +212,23 @@ export class SalonsController {
   })
   public async findAll(@Query() query: SalonQueryDto): Promise<PaginatedSalonsResponseDto> {
     return this.searchSalonsUseCase.execute(query);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @Get('me')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Lister tous les salons de l\'utilisateur connecté',
+    description: 'Retourne tous les salons dont l\'utilisateur connecté est propriétaire (SALON_OWNER).',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Liste des salons de l\'utilisateur.',
+    type: [SalonResponseDto],
+  })
+  public async findMine(@CurrentUser() user: TokenPayload): Promise<SalonResponseDto[]> {
+    return this.getMySalonsUseCase.execute(user.sub);
   }
 
   @Public()

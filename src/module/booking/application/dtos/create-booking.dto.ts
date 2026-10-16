@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsDateString,
   IsNotEmpty,
   IsNumber,
@@ -74,4 +75,14 @@ export class CreateBookingDto {
   @IsString()
   @IsOptional()
   public clientNotes?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Si true, le client paiera sur place au salon (espèces) : la réservation est confirmée immédiatement sans bloquer sur l\'acompte en ligne.',
+    example: true,
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  public payOnSite?: boolean;
 }

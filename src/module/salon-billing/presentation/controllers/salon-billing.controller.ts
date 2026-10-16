@@ -5,12 +5,15 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  ParseEnumPipe,
+  Patch,
   Post,
   UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -23,6 +26,10 @@ import { CheckExpiringSubscriptionsUseCase } from '../../application/usecases/ch
 import { SalonPlanResponseDto } from '../../application/dtos/salon-plan-response.dto.js';
 import { SalonBillingStatusResponseDto } from '../../application/dtos/salon-billing-status-response.dto.js';
 import { SubscribePlanDto } from '../../application/dtos/subscribe-plan.dto.js';
+import { UpdatePlanPriceDto } from '../../application/dtos/update-plan-price.dto.js';
+import { UpdateSalonPlanPriceUseCase } from '../../application/usecases/update-salon-plan-price.usecase.js';
+import { SuperAdminGuard } from '../../../admin/infrastructure/security/super-admin.guard.js';
+import { PlanTier } from '@prisma/client';
 
 @ApiTags('Salon Billing (Abonnements SaaS des Salons)')
 @Controller({ path: 'salons', version: '1' })
@@ -32,7 +39,34 @@ export class SalonBillingController {
     private readonly getSalonBillingStatusUseCase: GetSalonBillingStatusUseCase,
     private readonly subscribeSalonPlanUseCase: SubscribeSalonPlanUseCase,
     private readonly checkExpiringSubscriptionsUseCase: CheckExpiringSubscriptionsUseCase,
+    private readonly updateSalonPlanPriceUseCase: UpdateSalonPlanPriceUseCase,
   ) {}
+
+  @UseGuards(JwtAuthGuard, SuperAdminGuard)
+  @ApiBearerAuth('access-token')
+  @Patch('billing/plans/:tier/price')
+  @HttpCode(HttpStatus.OK)
+  @ApiParam({
+    name: 'tier',
+    enum: PlanTier,
+    description: 'Forfait à modifier : FREE, STARTER ou BUSINESS_PRO',
+    example: 'BUSINESS_PRO',
+  })
+  @ApiOperation({
+    summary: 'Modifier le prix d\'un forfait (Super-Admin)',
+    description: 'Ex: PATCH /salons/billing/plans/BUSINESS_PRO/price avec { "priceMonth": 1000 }.',
+  })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: 'Forfait mis à jour.',
+    type: SalonPlanResponseDto,
+  })
+  public async updatePlanPrice(
+    @Param('tier', new ParseEnumPipe(PlanTier)) tier: PlanTier,
+    @Body() dto: UpdatePlanPriceDto,
+  ): Promise<SalonPlanResponseDto> {
+    return this.updateSalonPlanPriceUseCase.execute(tier, dto);
+  }
 
   @Public()
   @Get('billing/plans')

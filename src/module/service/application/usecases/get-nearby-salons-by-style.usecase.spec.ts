@@ -70,6 +70,7 @@ describe('GetNearbySalonsByStyleUseCase', () => {
       findAll: vi.fn(),
       findNearby: vi.fn(),
       existsBySlug: vi.fn(),
+      findAllByOwnerUserId: vi.fn(),
       findExperienceConfig: vi.fn(),
       saveExperienceConfig: vi.fn(),
       findHours: vi.fn(),

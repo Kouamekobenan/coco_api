@@ -6,6 +6,7 @@ import { GetSalonPlansUseCase } from './application/usecases/get-salon-plans.use
 import { GetSalonBillingStatusUseCase } from './application/usecases/get-salon-billing-status.usecase.js';
 import { SubscribeSalonPlanUseCase } from './application/usecases/subscribe-salon-plan.usecase.js';
 import { CheckExpiringSubscriptionsUseCase } from './application/usecases/check-expiring-subscriptions.usecase.js';
+import { UpdateSalonPlanPriceUseCase } from './application/usecases/update-salon-plan-price.usecase.js';
 import { VerifySalonQuotasService } from './application/usecases/verify-salon-quotas.service.js';
 import { SalonBillingController } from './presentation/controllers/salon-billing.controller.js';
 
@@ -18,6 +19,7 @@ import { SalonBillingController } from './presentation/controllers/salon-billing
       useClass: PrismaSalonBillingRepository,
     },
     GetSalonPlansUseCase,
+    UpdateSalonPlanPriceUseCase,
     GetSalonBillingStatusUseCase,
     SubscribeSalonPlanUseCase,
     CheckExpiringSubscriptionsUseCase,

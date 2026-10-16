@@ -45,6 +45,7 @@ export interface ISalonRepository {
     options?: SalonNearbyFilterOptions,
   ): Promise<NearbySalonResult[]>;
   existsBySlug(slug: string, excludeId?: string): Promise<boolean>;
+  findAllByOwnerUserId(userId: string): Promise<SalonEntity[]>;
 
   // Expérience Vitrine
   findExperienceConfig(salonId: string): Promise<SalonExperienceConfigEntity | null>;

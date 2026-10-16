@@ -184,12 +184,14 @@ export class CreateBookingUseCase {
     }
 
     // 8. Détermination statut & délai de hold (15 minutes si acompte requis)
-    const requiresDeposit = depositAmount > 0;
+    // Si le client choisit de payer sur place, la réservation est confirmée sans blocage.
+    const depositRequiredOnline = depositAmount > 0 && !dto.payOnSite;
+    const requiresDeposit = depositRequiredOnline;
     const status = requiresDeposit ? BookingStatus.PENDING_DEPOSIT : BookingStatus.CONFIRMED;
     const holdExpiresAt = requiresDeposit
       ? new Date(Date.now() + 15 * 60 * 1000)
       : null;
-    const isDepositPaid = !requiresDeposit;
+    const isDepositPaid = depositAmount === 0;
 
     // 9. Création de l'entité
     const booking = new BookingEntity({

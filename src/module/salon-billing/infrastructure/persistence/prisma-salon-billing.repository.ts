@@ -35,6 +35,21 @@ export class PrismaSalonBillingRepository implements ISalonBillingRepository {
     return list.map((item) => SalonBillingMapper.toPlanDomain(item));
   }
 
+  public async updatePlanPrice(
+    tier: PlanTier,
+    priceMonth: number,
+    priceYear?: number,
+  ): Promise<SalonPlanEntity> {
+    const raw = await this.prisma.salonPlan.update({
+      where: { tier },
+      data: {
+        priceMonth,
+        ...(priceYear !== undefined ? { priceYear } : {}),
+      },
+    });
+    return SalonBillingMapper.toPlanDomain(raw);
+  }
+
   public async findSubscriptionBySalonId(
     salonId: string,
   ): Promise<SalonBillingSubscriptionEntity | null> {
