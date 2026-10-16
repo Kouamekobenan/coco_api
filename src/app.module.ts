@@ -23,6 +23,7 @@ import { NotificationModule } from './module/notification/notification.module.js
 import { HealthModule } from './module/health/health.module.js';
 import { SalonBillingModule } from './module/salon-billing/salon-billing.module.js';
 import { ReviewModule } from './module/review/review.module.js';
+import { ReferralModule } from './module/referral/referral.module.js';
 import { ScheduleModule } from '@nestjs/schedule';
 
 export const { ObserveModule, ObserveInstrument } = createObserveModule();
@@ -62,6 +63,7 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule();
     NotificationModule,
     SalonBillingModule,
     ReviewModule,
+    ReferralModule,
   ],
   controllers: [AppController],
   providers: [AppService],

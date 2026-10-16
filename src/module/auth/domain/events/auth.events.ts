@@ -13,5 +13,6 @@ export class UserRegisteredEvent {
     public readonly fullName: string | null,
     public readonly universe: string,
     public readonly createdAt: Date = new Date(),
+    public readonly referralCode: string | null = null,
   ) {}
 }

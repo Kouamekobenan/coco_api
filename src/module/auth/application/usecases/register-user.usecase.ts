@@ -116,6 +116,7 @@ export class RegisterUserUseCase {
           user.getFullName(),
           user.getDefaultUniverse(),
           user.getCreatedAt(),
+          dto.referralCode?.trim() || null,
         ),
       );
     }

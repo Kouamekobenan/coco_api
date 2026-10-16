@@ -63,4 +63,12 @@ export class RegisterDto {
   @IsOptional()
   @IsEnum(AppUniverseEnum, { message: 'Univers invalide (COCOMOUSSO ou COCOTAILLE attendu).' })
   defaultUniverse?: AppUniverseEnum;
+
+  @ApiPropertyOptional({
+    description: 'Code de parrainage d\'un utilisateur existant (le parrain et vous recevez des points)',
+    example: 'K7M2XQ9',
+  })
+  @IsOptional()
+  @IsString()
+  referralCode?: string;
 }

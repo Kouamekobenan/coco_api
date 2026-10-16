@@ -134,6 +134,7 @@ enum LoyaltyTxType {
   REDEEMED
   EXPIRED
   CANCELLED_REFUND
+  REFERRAL_BONUS
 }
 
 enum NotificationChannel {
@@ -172,6 +173,7 @@ model User {
   isActive        Boolean      @default(true)
   isSuperAdmin    Boolean      @default(false)
   twoFactorSecret String?
+  referralCode    String?      @unique // Code de parrainage personnel
   passwordHash    String       // Mot de passe haché (bcrypt)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
@@ -192,6 +194,8 @@ model User {
   staffProfile        Staff?
   subscriptions       SalonSubscription[]
   notifications       Notification[]
+  referralsMade       Referral[]   @relation("ReferralReferrer")
+  referralReceived    Referral?    @relation("ReferralReferee")
 
   @@index([phone])
 }
@@ -1071,3 +1075,20 @@ model SubscriptionPayment {
   @@index([salonId])
 }
 
+// =============================================================================
+// PARRAINAGE
+// =============================================================================
+
+model Referral {
+  id             String   @id @default(uuid())
+  referrerId     String
+  refereeId      String   @unique // Un filleul n'a qu'un seul parrain
+  referrerPoints Int      @default(0)
+  refereePoints  Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  referrer User @relation("ReferralReferrer", fields: [referrerId], references: [id], onDelete: Cascade)
+  referee  User @relation("ReferralReferee", fields: [refereeId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId])
+}
