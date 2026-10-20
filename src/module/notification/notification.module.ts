@@ -23,6 +23,7 @@ import { MarkNotificationReadUseCase } from './application/usecases/mark-notific
 import { MarkAllNotificationsReadUseCase } from './application/usecases/mark-all-notifications-read.usecase.js';
 import { GetUnreadCountUseCase } from './application/usecases/get-unread-count.usecase.js';
 import { ManagePreferencesUseCase } from './application/usecases/manage-preferences.usecase.js';
+import { RegisterDeviceUseCase } from './application/usecases/register-device.usecase.js';
 import { NotificationController } from './presentation/controllers/notification.controller.js';
 import { NotificationPreferencesController } from './presentation/controllers/notification-preferences.controller.js';
 
@@ -72,6 +73,7 @@ import { NotificationPreferencesController } from './presentation/controllers/no
     MarkAllNotificationsReadUseCase,
     GetUnreadCountUseCase,
     ManagePreferencesUseCase,
+    RegisterDeviceUseCase,
 
     // Workers & Listeners
     NotificationWorker,
@@ -79,6 +81,7 @@ import { NotificationPreferencesController } from './presentation/controllers/no
   ],
   exports: [
     SendNotificationUseCase,
+    RegisterDeviceUseCase,
     NOTIFICATION_REPOSITORY,
     NOTIFICATION_PREFERENCE_REPOSITORY,
   ],

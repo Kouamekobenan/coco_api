@@ -32,6 +32,10 @@ import { MarkAllNotificationsReadUseCase } from '../../application/usecases/mark
 import { GetUnreadCountUseCase } from '../../application/usecases/get-unread-count.usecase.js';
 import { SendNotificationUseCase } from '../../application/usecases/send-notification.usecase.js';
 
+import { RegisterDeviceDto } from '../../application/dtos/register-device.dto.js';
+import { RegisterDeviceUseCase } from '../../application/usecases/register-device.usecase.js';
+import { Delete } from '@nestjs/common';
+
 @ApiTags('Notifications')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard)
@@ -43,6 +47,7 @@ export class NotificationController {
     private readonly markAllNotificationsReadUseCase: MarkAllNotificationsReadUseCase,
     private readonly getUnreadCountUseCase: GetUnreadCountUseCase,
     private readonly sendNotificationUseCase: SendNotificationUseCase,
+    private readonly registerDeviceUseCase: RegisterDeviceUseCase,
   ) {}
 
   @Get()
@@ -81,6 +86,33 @@ export class NotificationController {
   @ApiResponse({ status: 200, schema: { example: { count: 5 } } })
   public async markAllAsRead(@CurrentUser() user: TokenPayload): Promise<{ count: number }> {
     return this.markAllNotificationsReadUseCase.execute(user.sub);
+  }
+
+  @Post('devices')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Enregistrer ou mettre à jour le token FCM d\'un appareil pour les notifications Push',
+  })
+  @ApiResponse({ status: 200, schema: { example: { success: true, deviceId: 'device-123' } } })
+  public async registerDevice(
+    @CurrentUser() user: TokenPayload,
+    @Body() dto: RegisterDeviceDto,
+  ) {
+    return this.registerDeviceUseCase.register(user.sub, dto);
+  }
+
+  @Delete('devices/:deviceId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Supprimer un appareil et désactiver ses notifications Push lors de la déconnexion',
+  })
+  @ApiParam({ name: 'deviceId', description: 'Identifiant du device' })
+  @ApiResponse({ status: 200, schema: { example: { success: true } } })
+  public async unregisterDevice(
+    @CurrentUser() user: TokenPayload,
+    @Param('deviceId') deviceId: string,
+  ) {
+    return this.registerDeviceUseCase.unregister(user.sub, deviceId);
   }
 
   @Post('send')
