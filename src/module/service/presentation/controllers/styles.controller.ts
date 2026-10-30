@@ -40,6 +40,7 @@ import {
 import { GetNearbySalonsByStyleUseCase } from '../../application/usecases/get-nearby-salons-by-style.usecase.js';
 import { Public } from '../../../auth/infrastructure/security/public.decorator.js';
 import { JwtAuthGuard } from '../../../auth/infrastructure/security/jwt-auth.guard.js';
+import { SuperAdminGuard } from '../../../admin/infrastructure/security/super-admin.guard.js';
 import 'multer';
 
 @ApiTags('Services')
@@ -57,7 +58,7 @@ export class StylesController {
   ) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @ApiBearerAuth('access-token')
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
@@ -103,13 +104,17 @@ export class StylesController {
   })
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
-    summary: 'Créer un style de coiffure dans le catalogue global',
+    summary: 'Créer un style de coiffure dans le catalogue global (Super-Admin uniquement)',
     description: 'Enregistre une coupe ou tendance afro / barbier (ex: Nappy Braids, Dégradé américain, Locks) avec son image (Cloudinary).',
   })
   @ApiResponse({
     status: HttpStatus.CREATED,
     description: 'Style créé avec succès.',
     type: StyleResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Accès refusé : privilèges Super-Administrateur Coco Platform requis.',
   })
   public async create(
     @Body() dto: CreateStyleDto,
@@ -196,7 +201,7 @@ export class StylesController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @ApiBearerAuth('access-token')
   @UseInterceptors(FileInterceptor('image'))
   @ApiConsumes('multipart/form-data')
@@ -219,7 +224,7 @@ export class StylesController {
   })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Modifier un style du catalogue',
+    summary: 'Modifier un style du catalogue (Super-Admin uniquement)',
     description: 'Met à jour un style du catalogue avec option de téléverser une nouvelle image sur Cloudinary.',
   })
   @ApiParam({ name: 'id', example: 'style-uuid' })
@@ -227,6 +232,10 @@ export class StylesController {
     status: HttpStatus.OK,
     description: 'Style mis à jour.',
     type: StyleResponseDto,
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Accès refusé : privilèges Super-Administrateur Coco Platform requis.',
   })
   public async update(
     @Param('id') id: string,
@@ -237,13 +246,13 @@ export class StylesController {
   }
 
   @Post(':id/image')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @ApiBearerAuth('access-token')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Téléverser l\'image d\'illustration d\'un style vers Cloudinary',
+    summary: 'Téléverser l\'image d\'illustration d\'un style vers Cloudinary (Super-Admin uniquement)',
     description: 'Envoie l\'image d\'illustration via multipart/form-data, la stocke sur Cloudinary et met à jour le style.',
   })
   @ApiParam({ name: 'id', example: 'style-uuid' })
@@ -265,6 +274,10 @@ export class StylesController {
     description: 'Image d\'illustration téléversée et style mis à jour.',
     type: StyleResponseDto,
   })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Accès refusé : privilèges Super-Administrateur Coco Platform requis.',
+  })
   public async uploadImage(
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
@@ -273,16 +286,20 @@ export class StylesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SuperAdminGuard)
   @ApiBearerAuth('access-token')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Supprimer un style du catalogue',
+    summary: 'Supprimer un style du catalogue (Super-Admin uniquement)',
   })
   @ApiParam({ name: 'id', example: 'style-uuid' })
   @ApiResponse({
     status: HttpStatus.OK,
     description: 'Style supprimé avec succès.',
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: 'Accès refusé : privilèges Super-Administrateur Coco Platform requis.',
   })
   public async delete(@Param('id') id: string): Promise<{ success: boolean; message: string }> {
     return this.deleteStyleUseCase.execute(id);

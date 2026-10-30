@@ -4,6 +4,7 @@ import { SalonModule } from '../salon/salon.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { CloudinaryModule } from '../../common/cloudinary/cloudinary.module.js';
 import { SalonBillingModule } from '../salon-billing/salon-billing.module.js';
+import { AdminModule } from '../admin/admin.module.js';
 
 // Domain Tokens
 import { SERVICE_REPOSITORY } from './domain/repositories/service.repository.interface.js';
@@ -50,7 +51,7 @@ import { ServicesController } from './presentation/controllers/services.controll
 import { ServiceVariantsController } from './presentation/controllers/service-variants.controller.js';
 
 @Module({
-  imports: [PrismaModule, SalonModule, AuthModule, CloudinaryModule, SalonBillingModule],
+  imports: [PrismaModule, SalonModule, AuthModule, CloudinaryModule, SalonBillingModule, AdminModule],
   controllers: [StylesController, ServicesController, ServiceVariantsController],
   providers: [
     // IoC Port -> Adapter Bindings (DDD)
